@@ -287,6 +287,157 @@ class HttpTests(unittest.TestCase):
             [{"identifier": "one"}, {"identifier": "two"}, {"identifier": "three"}],
         )
 
+    def test_send_paginated_request_supports_page_size_parameters(self) -> None:
+        manifest = load_manifest()
+        operation = manifest.by_operation_id["getEnvironmentList"]
+        config = HarnessConfig(api_key="harness-secret-token", account="acc")
+        seen_urls: list[str] = []
+
+        def fake_send(request: PreparedRequest, *, timeout: float) -> Response:
+            seen_urls.append(request.url)
+            body = {"data": [{"identifier": "one"}, {"identifier": "two"}]}
+            if len(seen_urls) > 1:
+                body = {"data": [{"identifier": "three"}]}
+            return Response(
+                status=200,
+                headers={"Content-Type": "application/json"},
+                body=json.dumps(body).encode("utf-8"),
+            )
+
+        with patch("harness_cli.http.send_request", fake_send):
+            response = send_paginated_request(
+                operation,
+                config,
+                CallOptions(
+                    path_values={},
+                    query_values={},
+                    header_values={},
+                    param_values={},
+                    body=None,
+                    content_type=None,
+                    all_pages=True,
+                    all_page_size=2,
+                ),
+                timeout=30.0,
+            )
+
+        parsed_urls = [urlsplit(url) for url in seen_urls]
+        self.assertEqual([url.path for url in parsed_urls], ["/ng/api/environmentsV2"] * 2)
+        self.assertEqual(
+            [parse_qs(url.query) for url in parsed_urls],
+            [
+                {"accountIdentifier": ["acc"], "page": ["0"], "size": ["2"]},
+                {"accountIdentifier": ["acc"], "page": ["1"], "size": ["2"]},
+            ],
+        )
+        self.assertEqual(
+            json.loads(response.body.decode("utf-8")),
+            [{"identifier": "one"}, {"identifier": "two"}, {"identifier": "three"}],
+        )
+
+    def test_send_paginated_request_supports_page_page_size_parameters(self) -> None:
+        manifest = load_manifest()
+        operation = manifest.by_operation_id["Exemptions#ListExemptions"]
+        config = HarnessConfig(api_key="harness-secret-token")
+        seen_urls: list[str] = []
+
+        def fake_send(request: PreparedRequest, *, timeout: float) -> Response:
+            seen_urls.append(request.url)
+            body = {"data": [{"identifier": "first"}]}
+            return Response(
+                status=200,
+                headers={"Content-Type": "application/json"},
+                body=json.dumps(body).encode("utf-8"),
+            )
+
+        with patch("harness_cli.http.send_request", fake_send):
+            response = send_paginated_request(
+                operation,
+                config,
+                CallOptions(
+                    path_values={},
+                    query_values={},
+                    header_values={},
+                    param_values={"accountId": "acc"},
+                    body=None,
+                    content_type=None,
+                    all_pages=True,
+                    all_page_size=2,
+                ),
+                timeout=30.0,
+            )
+
+        parsed = urlsplit(seen_urls[0])
+        self.assertEqual(parsed.path, "/sto/api/v2/exemptions")
+        self.assertEqual(
+            parse_qs(parsed.query), {"accountId": ["acc"], "page": ["0"], "pageSize": ["2"]}
+        )
+        self.assertEqual(json.loads(response.body.decode("utf-8")), [{"identifier": "first"}])
+
+    def test_send_paginated_request_supports_offset_page_size_parameters(self) -> None:
+        manifest = load_manifest()
+        operation = manifest.by_operation_id["getList"]
+        config = HarnessConfig(api_key="harness-secret-token")
+        seen_urls: list[str] = []
+
+        def fake_send(request: PreparedRequest, *, timeout: float) -> Response:
+            seen_urls.append(request.url)
+            body = {"data": [{"identifier": "one"}, {"identifier": "two"}]}
+            if len(seen_urls) > 1:
+                body = {"data": [{"identifier": "three"}]}
+            return Response(
+                status=200,
+                headers={"Content-Type": "application/json"},
+                body=json.dumps(body).encode("utf-8"),
+            )
+
+        with patch("harness_cli.http.send_request", fake_send):
+            response = send_paginated_request(
+                operation,
+                config,
+                CallOptions(
+                    path_values={},
+                    query_values={},
+                    header_values={},
+                    param_values={
+                        "accountId": "acc",
+                        "orgIdentifier": "org",
+                        "projectIdentifier": "proj",
+                    },
+                    body=None,
+                    content_type=None,
+                    all_pages=True,
+                    all_page_size=2,
+                ),
+                timeout=30.0,
+            )
+
+        parsed_urls = [urlsplit(url) for url in seen_urls]
+        self.assertEqual([url.path for url in parsed_urls], ["/cv/api/monitored-service/list"] * 2)
+        self.assertEqual(
+            [parse_qs(url.query) for url in parsed_urls],
+            [
+                {
+                    "accountId": ["acc"],
+                    "orgIdentifier": ["org"],
+                    "projectIdentifier": ["proj"],
+                    "offset": ["0"],
+                    "pageSize": ["2"],
+                },
+                {
+                    "accountId": ["acc"],
+                    "orgIdentifier": ["org"],
+                    "projectIdentifier": ["proj"],
+                    "offset": ["2"],
+                    "pageSize": ["2"],
+                },
+            ],
+        )
+        self.assertEqual(
+            json.loads(response.body.decode("utf-8")),
+            [{"identifier": "one"}, {"identifier": "two"}, {"identifier": "three"}],
+        )
+
     def test_send_paginated_request_rejects_non_paginated_operations(self) -> None:
         manifest = load_manifest()
         operation = manifest.by_operation_id["get-role-acc"]

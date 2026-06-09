@@ -151,7 +151,7 @@ def send_paginated_request(
     if not plan:
         raise ValueError(
             "--all requires query pagination parameters like page/limit, "
-            "pageIndex/pageSize, offset/limit, or pageToken."
+            "page/size, pageIndex/pageSize, offset/limit, or pageToken."
         )
     collected: list[Any] = []
     last_response: Response | None = None
@@ -354,6 +354,8 @@ def pagination_plan(operation: Operation) -> PaginationPlan | None:
         )
     for page_param, size_param in [
         ("page", "limit"),
+        ("page", "size"),
+        ("page", "pageSize"),
         ("pageIndex", "pageSize"),
         ("pageNumber", "pageSize"),
     ]:
@@ -365,11 +367,12 @@ def pagination_plan(operation: Operation) -> PaginationPlan | None:
                 None,
                 _int_value(query_params[page_param].default, 0),
             )
-    if "offset" in query_params and "limit" in query_params:
+    offset_size_param = _first_present(query_params, ["limit", "pageSize", "size"])
+    if "offset" in query_params and offset_size_param:
         return PaginationPlan(
             "offset",
             "offset",
-            "limit",
+            offset_size_param,
             None,
             _int_value(query_params["offset"].default, 0),
         )

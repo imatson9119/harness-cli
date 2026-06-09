@@ -147,8 +147,9 @@ Useful call flags:
 endpoint expects URL-encoded form data instead.
 
 `--all` works with endpoints that expose recognizable query pagination
-parameters such as `page`/`limit`, `pageIndex`/`pageSize`,
-`offset`/`limit`, or cursor-style `pageToken`/`cursor`. It stops at
+parameters such as `page`/`limit`, `page`/`size`, `page`/`pageSize`,
+`pageIndex`/`pageSize`, `pageNumber`/`pageSize`, `offset`/`limit`,
+`offset`/`pageSize`, or cursor-style `pageToken`/`cursor`. It stops at
 `--max-pages` as a safety guard.
 
 `--curl` prints a redacted cURL command and does not send the request. It is

@@ -118,6 +118,9 @@ Fetch paginated list endpoints until they are exhausted:
 harness account-roles list-roles-acc --all --all-page-size 100 --output table
 ```
 
+`--all` recognizes the common pagination shapes in the generated Harness
+manifest, including page, offset, and cursor-style query parameters.
+
 Preview the request without sending it:
 
 ```bash
