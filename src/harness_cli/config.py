@@ -90,8 +90,10 @@ def read_config_document(path: Path | None = None) -> dict[str, Any]:
     if not config_path.exists():
         return {}
     try:
-        with config_path.open("r", encoding="utf-8") as handle:
-            loaded = json.load(handle)
+        text = config_path.read_text(encoding="utf-8")
+        if not text.strip():
+            return {}
+        loaded = json.loads(text)
     except json.JSONDecodeError as exc:
         raise ValueError(f"Invalid JSON in {config_path}: {exc}") from exc
     if not isinstance(loaded, dict):

@@ -60,6 +60,16 @@ class ConfigTests(unittest.TestCase):
             self.assertEqual(config.host, "https://app.harness.io")
             self.assertEqual(config.account, "stage-account")
 
+    def test_empty_config_file_behaves_like_missing_config(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "config.json"
+            config_path.write_text("  \n", encoding="utf-8")
+
+            config = load_config(config_path)
+
+            self.assertEqual(config.profile, "default")
+            self.assertEqual(config.host, "https://app.harness.io")
+
     def test_host_is_normalized_when_written_and_loaded(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             config_path = Path(temp_dir) / "config.json"
