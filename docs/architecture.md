@@ -95,6 +95,13 @@ and the command exits with status `1`. Transport failures such as DNS,
 connection, or timeout errors are converted into concise CLI errors on stderr so
 users do not see Python tracebacks during normal failure modes.
 
+## Diagnostics
+
+`harness doctor` is local by default: it checks profile state, config file
+permissions, and manifest counts without sending traffic. `harness doctor
+--network` opts into a real `GET /v1/version` reachability check against the
+configured host and reports the result in both human and JSON output.
+
 ## Refreshing Endpoint Coverage
 
 The generator fetches:

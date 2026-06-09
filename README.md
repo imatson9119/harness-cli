@@ -159,6 +159,7 @@ HARNESS_ASCII=1 harness account-roles list-roles-acc --limit 10
 
 ```bash
 harness doctor
+harness doctor --network
 harness auth status
 harness profile list
 harness profile use prod

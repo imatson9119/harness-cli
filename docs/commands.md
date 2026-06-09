@@ -6,6 +6,7 @@
 harness --help
 harness init
 harness doctor
+harness doctor --network
 harness auth status
 harness profile list
 harness config list
@@ -37,6 +38,19 @@ harness profile remove sandbox --force
 
 `HARNESS_PROFILE` selects a profile without changing the config file. `harness
 init --profile NAME` writes onboarding values into a named profile.
+
+## Diagnostics
+
+```bash
+harness doctor
+harness doctor --network
+harness doctor --network --timeout 5 --json
+harness auth status
+```
+
+`harness doctor` checks local config, profile, permissions, and generated
+manifest counts. `--network` also sends `GET /v1/version` to the configured
+Harness host so setup problems can be separated from connectivity problems.
 
 ## Configuration
 

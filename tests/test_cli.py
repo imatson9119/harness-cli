@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 from harness_cli.cli import main, parse_call_options
 from harness_cli.config import HarnessConfig
-from harness_cli.http import RequestError
+from harness_cli.http import RequestError, Response
 from harness_cli.manifest import load_manifest
 
 
@@ -296,6 +296,76 @@ class CliTests(unittest.TestCase):
         self.assertEqual(status, 1)
         self.assertIn("error: GET /v1/roles failed: offline", stderr.getvalue())
         self.assertNotIn("Traceback", combined)
+
+    def test_doctor_network_check_reports_success(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "config.json"
+            config_path.write_text(
+                json.dumps(
+                    {
+                        "current_profile": "default",
+                        "profiles": {
+                            "default": {
+                                "api_key": "secret-token",
+                                "host": "https://app.harness.io",
+                            }
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            config_path.chmod(0o600)
+            stdout = io.StringIO()
+
+            with (
+                patch.dict(os.environ, {"HARNESS_CONFIG": str(config_path)}, clear=True),
+                patch(
+                    "harness_cli.cli.send_request",
+                    return_value=Response(status=200, headers={}, body=b"{}"),
+                ),
+                redirect_stdout(stdout),
+            ):
+                status = main(["doctor", "--network", "--json"])
+
+        data = json.loads(stdout.getvalue())
+        self.assertEqual(status, 0)
+        self.assertTrue(data["network_check"]["ok"])
+        self.assertEqual(data["network_check"]["path"], "/v1/version")
+
+    def test_doctor_network_check_reports_transport_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "config.json"
+            config_path.write_text(
+                json.dumps(
+                    {
+                        "current_profile": "default",
+                        "profiles": {
+                            "default": {
+                                "api_key": "secret-token",
+                                "host": "https://app.harness.io",
+                            }
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            config_path.chmod(0o600)
+            stdout = io.StringIO()
+
+            with (
+                patch.dict(os.environ, {"HARNESS_CONFIG": str(config_path)}, clear=True),
+                patch(
+                    "harness_cli.cli.send_request",
+                    side_effect=RequestError("GET /v1/version failed: offline"),
+                ),
+                redirect_stdout(stdout),
+            ):
+                status = main(["doctor", "--network", "--json"])
+
+        data = json.loads(stdout.getvalue())
+        self.assertEqual(status, 1)
+        self.assertFalse(data["network_check"]["ok"])
+        self.assertIn("Network check failed", data["issues"][0])
 
 
 if __name__ == "__main__":

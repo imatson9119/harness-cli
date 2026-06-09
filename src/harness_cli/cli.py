@@ -357,11 +357,24 @@ def command_doctor(argv: list[str]) -> int:
         description="Check local Harness CLI setup.",
     )
     parser.add_argument("--json", action="store_true", help="Print machine-readable output.")
+    parser.add_argument(
+        "--network",
+        action="store_true",
+        help="Also check reachability with GET /v1/version.",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=10.0,
+        help="Network check timeout in seconds.",
+    )
     parsed = parser.parse_args(argv)
+    if parsed.timeout <= 0:
+        raise ValueError("--timeout must be greater than zero")
     config_path = default_config_path()
     config = load_config()
     manifest = load_manifest()
-    issues = []
+    issues: list[str] = []
     if not config.api_key:
         issues.append("No API key configured.")
     if config_path.exists():
@@ -370,6 +383,11 @@ def command_doctor(argv: list[str]) -> int:
             issues.append(f"Config file permissions are {mode:o}; expected 600.")
     else:
         issues.append(f"Config file does not exist at {config_path}.")
+    network_check: dict[str, Any] | None = None
+    if parsed.network:
+        network_check = doctor_network_check(manifest, config, parsed.timeout)
+        if not network_check["ok"]:
+            issues.append(f"Network check failed: {network_check['message']}")
     data = {
         "ok": not issues,
         "config_path": str(config_path),
@@ -379,6 +397,7 @@ def command_doctor(argv: list[str]) -> int:
         "operation_count": manifest.operation_count,
         "group_count": len(manifest.groups),
         "manifest_source": manifest.source,
+        "network_check": network_check,
         "issues": issues,
     }
     if parsed.json:
@@ -390,6 +409,7 @@ def command_doctor(argv: list[str]) -> int:
         print(f"API key: {'configured' if config.api_key else 'missing'}")
         print(f"Generated operations: {manifest.operation_count}")
         print(f"Generated groups: {len(manifest.groups)}")
+        print_doctor_network_check(network_check)
         if issues:
             print("Issues:")
             for issue in issues:
@@ -397,6 +417,57 @@ def command_doctor(argv: list[str]) -> int:
         else:
             print("No local issues found.")
     return 0 if not issues else 1
+
+
+def doctor_network_check(
+    manifest: Manifest,
+    config: HarnessConfig,
+    timeout: float,
+) -> dict[str, Any]:
+    operation = manifest.by_operation_id.get("getVersion")
+    if operation is None:
+        return {
+            "ok": False,
+            "message": "Version operation is missing from the endpoint manifest.",
+        }
+    options = CallOptions(
+        path_values={},
+        query_values={},
+        header_values={},
+        param_values={},
+        body=None,
+        content_type=None,
+        no_auth=True,
+    )
+    request = prepare_request(operation, config, options)
+    try:
+        response = send_request(request, timeout=timeout)
+    except RequestError as exc:
+        return {
+            "ok": False,
+            "method": request.method,
+            "path": operation.path,
+            "url": request.url,
+            "message": str(exc),
+        }
+    message = f"{request.method} {operation.path} returned HTTP {response.status}"
+    return {
+        "ok": response.status < 400,
+        "method": request.method,
+        "path": operation.path,
+        "url": request.url,
+        "status": response.status,
+        "message": message,
+    }
+
+
+def print_doctor_network_check(network_check: dict[str, Any] | None) -> None:
+    if network_check is None:
+        print("Network: skipped (run `harness doctor --network`)")
+        return
+    symbol = glyph("ok" if network_check["ok"] else "fail", stream=sys.stdout)
+    style = "green" if network_check["ok"] else "red"
+    print(f"Network: {stylize(symbol, style)} {network_check['message']}")
 
 
 def command_completion(argv: list[str]) -> int:
@@ -989,7 +1060,7 @@ def completion_candidates(manifest: Manifest, words: list[str], current: str) ->
     if command == "auth":
         return _filter_candidates(["status"], current) if len(words) == 1 else []
     if command == "doctor":
-        return _filter_candidates(["--json", "--help"], current)
+        return _filter_candidates(["--json", "--network", "--timeout", "--help"], current)
     if command == "init":
         return _filter_candidates(
             [
