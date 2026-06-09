@@ -726,11 +726,13 @@ def command_api_list(manifest: Manifest, argv: list[str]) -> int:
     parser.add_argument("--wide", action="store_true", help="Do not truncate table cells.")
     parser.add_argument("--json", action="store_true", help="Print JSON.")
     parsed = parser.parse_args(argv)
+    method = _validate_http_method_filter(parsed.method)
+    group = _validate_group_filter(manifest, parsed.group)
     operations = manifest.search(
         text=parsed.search,
         tag=parsed.tag,
-        method=parsed.method,
-        group=parsed.group,
+        method=method,
+        group=group,
         path=parsed.path,
         has_body=parsed.has_body,
         deprecated=parsed.deprecated,
@@ -1659,6 +1661,27 @@ def _parse_positive_float(value: str, flag: str) -> float:
     if parsed <= 0:
         raise ValueError(f"{flag} must be greater than zero")
     return parsed
+
+
+def _validate_http_method_filter(value: str | None) -> str | None:
+    if value is None:
+        return None
+    method = value.lower()
+    if method not in HTTP_METHODS:
+        choices = ", ".join(sorted(HTTP_METHODS))
+        raise ValueError(f"--method must be one of: {choices}")
+    return method
+
+
+def _validate_group_filter(manifest: Manifest, value: str | None) -> str | None:
+    if value is None:
+        return None
+    group = value.lower()
+    if group not in manifest.groups:
+        suggestions = difflib.get_close_matches(group, sorted(manifest.groups), n=5)
+        hint = f" Did you mean: {', '.join(suggestions)}?" if suggestions else ""
+        raise ValueError(f"Unknown API group: {value}.{hint}")
+    return group
 
 
 def _flag_name(name: str) -> str:

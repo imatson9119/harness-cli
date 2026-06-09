@@ -118,6 +118,9 @@ Useful discovery filters:
 - `--deprecated`
 - `--wide`
 
+`--method` is validated against known HTTP methods, and `--group` must match a
+generated group slug. Misspelled groups include nearest-match suggestions.
+
 Use `--wide` on `api list` or `api groups` when you want copy-friendly tables
 with full command and group names instead of terminal-fitted cells.
 

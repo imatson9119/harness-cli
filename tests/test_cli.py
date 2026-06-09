@@ -201,6 +201,36 @@ class CliTests(unittest.TestCase):
         self.assertTrue(operations)
         self.assertTrue(all("/v1/roles" in item["path"] for item in operations))
 
+    def test_api_list_accepts_uppercase_method_filter(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(["api", "list", "--method", "GET", "--limit", "3", "--json"])
+
+        operations = json.loads(stdout.getvalue())
+        self.assertEqual(status, 0)
+        self.assertEqual(len(operations), 3)
+        self.assertTrue(all(item["method"] == "get" for item in operations))
+
+    def test_api_list_rejects_unknown_method_filter(self) -> None:
+        stderr = io.StringIO()
+
+        with contextlib.redirect_stderr(stderr):
+            status = main(["api", "list", "--method", "fetch"])
+
+        self.assertEqual(status, 2)
+        self.assertIn("--method must be one of:", stderr.getvalue())
+
+    def test_api_list_rejects_unknown_group_with_suggestion(self) -> None:
+        stderr = io.StringIO()
+
+        with contextlib.redirect_stderr(stderr):
+            status = main(["api", "list", "--group", "accunt-roles"])
+
+        self.assertEqual(status, 2)
+        self.assertIn("Unknown API group: accunt-roles.", stderr.getvalue())
+        self.assertIn("account-roles", stderr.getvalue())
+
     def test_api_list_wide_prints_full_operation_slugs(self) -> None:
         stdout = io.StringIO()
 
