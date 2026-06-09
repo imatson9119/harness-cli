@@ -51,6 +51,8 @@ def validate_manifest(manifest: dict[str, Any]) -> list[str]:
         return ["operations must be a list"]
     if not isinstance(groups, dict):
         return ["groups must be an object"]
+    if manifest.get("schema_version") != 2:
+        errors.append("schema_version must be 2")
 
     if manifest.get("operation_count") != len(operations):
         errors.append("operation_count does not match operations length")
@@ -108,6 +110,20 @@ def _validate_operation(operation: dict[str, Any], index: int, groups: dict[str,
     request_body = operation.get("request_body")
     if request_body is not None and not isinstance(request_body, dict):
         errors.append(f"{label}: request_body must be an object or null")
+    elif isinstance(request_body, dict):
+        content_types = request_body.get("content_types")
+        samples = request_body.get("samples")
+        if not isinstance(content_types, list):
+            errors.append(f"{label}: request_body.content_types must be a list")
+        if samples is not None and not isinstance(samples, dict):
+            errors.append(f"{label}: request_body.samples must be an object")
+        if isinstance(content_types, list) and isinstance(samples, dict):
+            unexpected = sorted(set(samples) - {str(item) for item in content_types})
+            if unexpected:
+                errors.append(
+                    f"{label}: request_body.samples contains unknown content types: "
+                    + ", ".join(unexpected[:10])
+                )
     return errors
 
 

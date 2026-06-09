@@ -25,6 +25,7 @@ class RequestBody:
     required: bool
     content_types: tuple[str, ...]
     description: str = ""
+    samples: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -178,4 +179,5 @@ def _request_body_from_raw(item: dict[str, Any]) -> RequestBody:
         required=bool(item.get("required", False)),
         content_types=tuple(item.get("content_types", [])),
         description=item.get("description", ""),
+        samples=dict(item.get("samples", {})),
     )

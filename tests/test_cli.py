@@ -37,6 +37,29 @@ class CliTests(unittest.TestCase):
         self.assertIn("operation_count", output)
         self.assertIn("source_hash", output)
 
+    def test_api_body_prints_request_template(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(["api", "body", "create-role-acc"])
+
+        data = json.loads(stdout.getvalue())
+        self.assertEqual(status, 0)
+        self.assertEqual(data["identifier"], "example_role")
+        self.assertIn("permissions", data)
+
+    def test_api_body_json_prints_template_metadata(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(["api", "body", "create-role-acc", "--json"])
+
+        data = json.loads(stdout.getvalue())
+        self.assertEqual(status, 0)
+        self.assertEqual(data["operation_id"], "create-role-acc")
+        self.assertEqual(data["content_type"], "application/json")
+        self.assertEqual(data["body"]["identifier"], "example_role")
+
     def test_dynamic_call_parses_kebab_case_parameters(self) -> None:
         manifest = load_manifest()
         operation = manifest.by_operation_id["list-roles-acc"]
@@ -127,6 +150,15 @@ class CliTests(unittest.TestCase):
         self.assertIn("_harness_complete", output)
         self.assertIn("complete -F _harness_complete harness", output)
 
+    def test_completion_lists_api_body_action(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(["__complete", "--current", "bo", "--", "api"])
+
+        self.assertEqual(status, 0)
+        self.assertIn("body\n", stdout.getvalue())
+
     def test_completion_scripts_keep_shell_quotes_balanced(self) -> None:
         for shell, expected in [
             ("zsh", '_harness "$@"'),
@@ -197,6 +229,16 @@ class CliTests(unittest.TestCase):
         self.assertIn("Pagination: Supports --all", output)
         self.assertIn("Examples:", output)
         self.assertIn("harness account-roles list-roles-acc --all --output table", output)
+
+    def test_api_describe_prints_body_template_hint(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(["api", "describe", "create-role-acc"])
+
+        output = stdout.getvalue()
+        self.assertEqual(status, 0)
+        self.assertIn("Body template: harness api body create-role-acc", output)
 
     def test_operation_help_prints_required_account_alias(self) -> None:
         stdout = io.StringIO()

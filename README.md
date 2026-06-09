@@ -76,6 +76,13 @@ harness api describe list-roles-acc
 Descriptions include parameter defaults, enum hints, docs links, pagination
 support, and pasteable examples.
 
+Print a request-body template for create/update operations:
+
+```bash
+harness api body create-role-acc > role.json
+harness api body create-role-acc --json
+```
+
 Call an operation through the stable API dispatcher:
 
 ```bash
@@ -168,6 +175,7 @@ harness config set account acc_123
 harness config set default_output table
 harness api info
 harness api groups
+harness api body create-role-acc
 ```
 
 ## Development

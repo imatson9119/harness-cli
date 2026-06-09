@@ -60,6 +60,7 @@ validator before packaging.
 Each OpenAPI operation is exposed through:
 
 - `harness api call <operation-id>`
+- `harness api body <operation-id>` for request-body templates
 - `harness <tag-slug> <operation-id>`
 
 Operation parameters become flags when called through a generated group:
@@ -83,6 +84,8 @@ The request builder:
 - Adds query and header parameters from flags.
 - Uses `x-api-key` unless `--no-auth` is provided.
 - Supports JSON/YAML/form request bodies as raw input.
+- Stores request-body samples from OpenAPI examples or compact schema-derived
+  templates for `harness api body`.
 - Supports multipart file uploads through `--form` and `--file`.
 - Supports binary response downloads through `--output-file`.
 - Supports guarded pagination helpers for common list endpoint shapes.

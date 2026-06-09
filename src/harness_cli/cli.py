@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import difflib
 import getpass
+import json
 import os
 import re
 import sys
@@ -126,6 +127,7 @@ Usage:
   harness init
   harness api list [--search TEXT] [--tag TAG]
   harness api describe OPERATION
+  harness api body OPERATION
   harness api call OPERATION [flags]
   harness <group> <operation> [flags]
   harness profile list
@@ -145,6 +147,7 @@ Examples:
   harness init
   harness api list --search pipeline
   harness api describe list-roles-acc
+  harness api body create-role-acc > body.json
   harness api call list-roles-acc --query limit=10
   harness account-roles list-roles-acc --limit 10 --dry-run
 """
@@ -522,6 +525,7 @@ def command_api(argv: list[str]) -> int:
   harness api groups
   harness api list [--search TEXT] [--tag TAG] [--method METHOD]
   harness api describe OPERATION
+  harness api body OPERATION
   harness api call OPERATION [flags]
 """
         )
@@ -537,6 +541,8 @@ def command_api(argv: list[str]) -> int:
         return command_api_list(manifest, rest)
     if action == "describe":
         return command_api_describe(manifest, rest)
+    if action == "body":
+        return command_api_body(manifest, rest)
     if action == "call":
         return command_api_call(manifest, rest)
     raise ValueError(f"Unknown api action: {action}")
@@ -616,6 +622,27 @@ def command_api_describe(manifest: Manifest, argv: list[str]) -> int:
         print_json(operation_to_dict(operation))
     else:
         print_operation_detail(operation)
+    return 0
+
+
+def command_api_body(manifest: Manifest, argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(prog="harness api body")
+    parser.add_argument("operation", help="Operation id, command slug, or group/operation.")
+    parser.add_argument("--content-type", default=None, help="Request content type to sample.")
+    parser.add_argument("--json", action="store_true", help="Include body metadata.")
+    parsed = parser.parse_args(argv)
+    operation = resolve_operation(manifest, parsed.operation)
+    content_type, sample = request_body_sample(operation, parsed.content_type)
+    if parsed.json:
+        print_json(
+            {
+                "operation_id": operation.operation_id,
+                "content_type": content_type,
+                "body": sample,
+            }
+        )
+    else:
+        print(json.dumps(sample, indent=2, sort_keys=True))
     return 0
 
 
@@ -879,6 +906,7 @@ def print_operation_help(operation: Operation) -> None:
         required = "required" if operation.request_body.required else "optional"
         print()
         print(f"Body: {required}; content types: {', '.join(operation.request_body.content_types)}")
+        print(f"Body template: harness api body {operation.operation_id}")
     pagination = pagination_help(operation)
     if pagination:
         print()
@@ -929,6 +957,7 @@ def print_operation_detail(operation: Operation) -> None:
             + ("required" if operation.request_body.required else "optional")
             + f" ({', '.join(operation.request_body.content_types)})"
         )
+        print(f"Body template: harness api body {operation.operation_id}")
     pagination = pagination_help(operation)
     if pagination:
         print()
@@ -952,6 +981,29 @@ def operation_examples(operation: Operation) -> list[str]:
         examples.append(f"harness {operation.group} {operation.command} --all --output table")
     examples.append(f"harness {operation.group} {operation.command}{required_flags} --dry-run")
     return examples
+
+
+def request_body_sample(operation: Operation, content_type: str | None) -> tuple[str, Any]:
+    request_body = operation.request_body
+    if not request_body:
+        raise ValueError(f"Operation {operation.operation_id} does not define a request body.")
+    samples = request_body.samples or {}
+    if content_type:
+        if content_type not in request_body.content_types:
+            available = ", ".join(request_body.content_types)
+            raise ValueError(
+                f"Unknown content type for {operation.operation_id}: {content_type}. "
+                f"Available: {available}"
+            )
+        return content_type, samples.get(content_type, {})
+    for preferred in ("application/json", "application/yaml", "application/x-yaml"):
+        if preferred in samples:
+            return preferred, samples[preferred]
+    if samples:
+        selected = sorted(samples)[0]
+        return selected, samples[selected]
+    selected = request_body.content_types[0] if request_body.content_types else "application/json"
+    return selected, {}
 
 
 def _example_required_flags(operation: Operation) -> str:
@@ -1035,6 +1087,7 @@ def operation_to_dict(operation: Operation) -> dict[str, Any]:
             "required": operation.request_body.required,
             "content_types": list(operation.request_body.content_types),
             "description": operation.request_body.description,
+            "samples": operation.request_body.samples or {},
         }
         if operation.request_body
         else None,
@@ -1086,12 +1139,16 @@ def completion_candidates(manifest: Manifest, words: list[str], current: str) ->
 
 def _api_completion_candidates(manifest: Manifest, words: list[str], current: str) -> list[str]:
     if not words:
-        return _filter_candidates(["call", "describe", "groups", "info", "list"], current)
+        return _filter_candidates(["body", "call", "describe", "groups", "info", "list"], current)
     action = words[0]
-    if action in {"call", "describe"}:
+    if action in {"body", "call", "describe"}:
         if len(words) == 1:
             return _filter_candidates(_operation_completion_candidates(manifest), current)
         operation = manifest.find_operation(words[1])
+        if action == "body":
+            if words[-1] == "--content-type" and operation and operation.request_body:
+                return _filter_candidates(list(operation.request_body.content_types), current)
+            return _filter_candidates(["--content-type", "--json", "--help"], current)
         if action == "call" and operation:
             return _operation_flag_completion_candidates(operation, current)
         return []
@@ -1103,7 +1160,7 @@ def _api_completion_candidates(manifest: Manifest, words: list[str], current: st
         return _filter_candidates(
             ["--search", "--tag", "--method", "--limit", "--json", "--help"], current
         )
-    return _filter_candidates(["call", "describe", "groups", "info", "list"], current)
+    return _filter_candidates(["body", "call", "describe", "groups", "info", "list"], current)
 
 
 def _config_completion_candidates(words: list[str], current: str) -> list[str]:

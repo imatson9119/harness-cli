@@ -25,7 +25,7 @@ def main() -> int:
     operations = build_operations(definition)
     groups = build_groups(operations)
     manifest = {
-        "schema_version": 1,
+        "schema_version": 2,
         "source": SOURCE_URL,
         "source_hash": hashlib.sha256(raw_bytes).hexdigest(),
         "api_title": definition.get("info", {}).get("title", ""),
@@ -95,7 +95,8 @@ def build_operations(definition: dict[str, Any]) -> list[dict[str, Any]]:
                     "deprecated": bool(operation.get("deprecated", False)),
                     "parameters": parameters,
                     "request_body": serialize_request_body(
-                        resolve_ref(operation.get("requestBody"), components)
+                        resolve_ref(operation.get("requestBody"), components),
+                        components,
                     ),
                     "docs_url": docs_url(docs_group, command),
                 }
@@ -154,15 +155,146 @@ def serialize_parameter(parameter: Any) -> dict[str, Any] | None:
     }
 
 
-def serialize_request_body(request_body: Any) -> dict[str, Any] | None:
+def serialize_request_body(request_body: Any, components: dict[str, Any]) -> dict[str, Any] | None:
     if not isinstance(request_body, dict):
         return None
     content = request_body.get("content") or {}
+    samples = request_body_samples(content, components)
     return {
         "required": bool(request_body.get("required", False)),
         "description": clean_text(request_body.get("description", "")),
         "content_types": sorted(content.keys()) if isinstance(content, dict) else [],
+        "samples": samples,
     }
+
+
+def request_body_samples(content: Any, components: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(content, dict):
+        return {}
+    samples: dict[str, Any] = {}
+    for content_type, media in sorted(content.items()):
+        if not isinstance(media, dict):
+            continue
+        sample = media_sample(media, components)
+        if sample is None:
+            sample = schema_sample(media.get("schema"), components)
+        if sample is not None:
+            samples[str(content_type)] = sample
+    return samples
+
+
+def media_sample(media: dict[str, Any], components: dict[str, Any]) -> Any:
+    if "example" in media:
+        return media["example"]
+    examples = media.get("examples")
+    if isinstance(examples, dict):
+        for example in examples.values():
+            resolved = resolve_ref(example, components)
+            if isinstance(resolved, dict) and "value" in resolved:
+                return resolved["value"]
+            if resolved is not None:
+                return resolved
+    return None
+
+
+def schema_sample(
+    schema: Any,
+    components: dict[str, Any],
+    *,
+    seen: set[str] | None = None,
+    depth: int = 0,
+) -> Any:
+    if depth > 8 or not isinstance(schema, dict):
+        return None
+    seen = set() if seen is None else seen
+    if "$ref" in schema and isinstance(schema["$ref"], str):
+        ref = schema["$ref"]
+        if ref in seen:
+            return {}
+        return schema_sample(
+            resolve_ref(schema, components), components, seen={*seen, ref}, depth=depth + 1
+        )
+    if "example" in schema:
+        return schema["example"]
+    if "default" in schema:
+        return schema["default"]
+    if schema.get("enum"):
+        return schema["enum"][0]
+    if "const" in schema:
+        return schema["const"]
+    for union_key in ("oneOf", "anyOf"):
+        values = schema.get(union_key)
+        if isinstance(values, list) and values:
+            return schema_sample(values[0], components, seen=seen, depth=depth + 1)
+    if isinstance(schema.get("allOf"), list):
+        merged: dict[str, Any] = {}
+        for item in schema["allOf"]:
+            sample = schema_sample(item, components, seen=seen, depth=depth + 1)
+            if isinstance(sample, dict):
+                merged.update(sample)
+            elif sample is not None and not merged:
+                return sample
+        return merged
+
+    schema_type_value = schema.get("type")
+    if isinstance(schema_type_value, list):
+        schema_type = next((item for item in schema_type_value if item != "null"), None)
+    else:
+        schema_type = schema_type_value
+    if schema_type == "array":
+        item_sample = schema_sample(schema.get("items"), components, seen=seen, depth=depth + 1)
+        return [item_sample if item_sample is not None else "value"]
+    if schema_type == "object" or isinstance(schema.get("properties"), dict):
+        return object_schema_sample(schema, components, seen=seen, depth=depth + 1)
+    if schema_type == "integer":
+        return 0
+    if schema_type == "number":
+        return 0.0
+    if schema_type == "boolean":
+        return False
+    if schema_type == "string" or schema_type is None:
+        return string_sample(schema)
+    return "value"
+
+
+def object_schema_sample(
+    schema: dict[str, Any],
+    components: dict[str, Any],
+    *,
+    seen: set[str],
+    depth: int,
+) -> dict[str, Any]:
+    properties = schema.get("properties")
+    if not isinstance(properties, dict):
+        additional = schema.get("additionalProperties")
+        if isinstance(additional, dict):
+            value = schema_sample(additional, components, seen=seen, depth=depth + 1)
+            return {"key": value if value is not None else "value"}
+        return {}
+
+    required = [item for item in schema.get("required", []) if isinstance(item, str)]
+    optional = [key for key in properties if key not in required]
+    selected = [*required, *optional[: max(0, 12 - len(required))]]
+    sample: dict[str, Any] = {}
+    for key in selected:
+        value = schema_sample(properties.get(key), components, seen=seen, depth=depth + 1)
+        sample[key] = value if value is not None else "value"
+    return sample
+
+
+def string_sample(schema: dict[str, Any]) -> str:
+    schema_format = schema.get("format")
+    if schema_format == "date-time":
+        return "2026-01-01T00:00:00Z"
+    if schema_format == "date":
+        return "2026-01-01"
+    if schema_format == "uuid":
+        return "00000000-0000-0000-0000-000000000000"
+    if schema_format in {"uri", "url"}:
+        return "https://example.com"
+    if schema_format == "password":
+        return "********"
+    return "string"
 
 
 def schema_type(schema: Any) -> str | None:

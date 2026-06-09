@@ -11,6 +11,7 @@ harness auth status
 harness profile list
 harness config list
 harness api info
+harness api body create-role-acc
 harness api list
 harness completion zsh
 ```
@@ -78,10 +79,15 @@ harness api groups
 harness api list --tag "Pipeline"
 harness api list --method post --search execute
 harness api describe execute-a-pipeline
+harness api body create-role-acc
+harness api body create-role-acc --content-type application/yaml --json
 ```
 
 `harness api describe` prints docs links, defaults, enums, pagination support,
-and pasteable examples for the generated shortcut and stable `api call` form.
+body-template hints, and pasteable examples for the generated shortcut and
+stable `api call` form. `harness api body` prints request-body templates from
+official examples where available, then falls back to a compact schema-derived
+sample.
 
 ## API Calls
 
