@@ -37,6 +37,28 @@ class CliTests(unittest.TestCase):
         self.assertIn("operation_count", output)
         self.assertIn("source_hash", output)
 
+    def test_api_groups_can_search_and_limit_json_output(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(["api", "groups", "--search", "pipeline", "--limit", "2", "--json"])
+
+        groups = json.loads(stdout.getvalue())
+        self.assertEqual(status, 0)
+        self.assertEqual(len(groups), 2)
+        self.assertTrue(
+            all("pipeline" in item["group"] or "Pipeline" in item["tag"] for item in groups)
+        )
+
+    def test_api_groups_rejects_non_positive_limit(self) -> None:
+        stderr = io.StringIO()
+
+        with contextlib.redirect_stderr(stderr):
+            status = main(["api", "groups", "--limit", "0"])
+
+        self.assertEqual(status, 2)
+        self.assertIn("--limit must be greater than zero", stderr.getvalue())
+
     def test_global_profile_and_config_select_command_context(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             config_path = Path(temp_dir) / "config.json"
@@ -481,6 +503,15 @@ class CliTests(unittest.TestCase):
 
         self.assertEqual(status, 0)
         self.assertIn("account-roles\n", stdout.getvalue())
+
+    def test_completion_lists_api_group_search_flag(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(["__complete", "--current", "--se", "--", "api", "groups"])
+
+        self.assertEqual(status, 0)
+        self.assertIn("--search\n", stdout.getvalue())
 
     def test_completion_lists_doctor_fix_permissions(self) -> None:
         stdout = io.StringIO()

@@ -671,10 +671,17 @@ def command_api_info(manifest: Manifest, argv: list[str]) -> int:
 
 def command_api_groups(manifest: Manifest, argv: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="harness api groups")
+    parser.add_argument("--search", default=None, help="Search group slug or tag.")
+    parser.add_argument("--limit", type=int, default=100, help="Maximum rows to print.")
     parser.add_argument("--json", action="store_true", help="Print JSON.")
     parsed = parser.parse_args(argv)
+    if parsed.limit <= 0:
+        raise ValueError("--limit must be greater than zero")
+    search = parsed.search.lower() if parsed.search else None
     rows = []
     for group, label in sorted(manifest.groups.items(), key=lambda item: item[0]):
+        if search and search not in group.lower() and search not in label.lower():
+            continue
         rows.append(
             {
                 "group": group,
@@ -682,13 +689,16 @@ def command_api_groups(manifest: Manifest, argv: list[str]) -> int:
                 "operations": len(manifest.group_operations(group)),
             }
         )
+    limited = rows[: parsed.limit]
     if parsed.json:
-        print_json(rows)
+        print_json(limited)
     else:
         print_table(
             ["group", "tag", "operations"],
-            [[r["group"], r["tag"], r["operations"]] for r in rows],
+            [[r["group"], r["tag"], r["operations"]] for r in limited],
         )
+        if len(rows) > len(limited):
+            print(f"... {len(rows) - len(limited)} more. Increase --limit to show more.")
     return 0
 
 
@@ -1444,7 +1454,7 @@ def _api_completion_candidates(manifest: Manifest, words: list[str], current: st
             return _operation_flag_completion_candidates(operation, current)
         return []
     if action == "groups":
-        return _filter_candidates(["--json", "--help"], current)
+        return _filter_candidates(["--search", "--limit", "--json", "--help"], current)
     if action == "info":
         return _filter_candidates(["--json", "--help"], current)
     if action == "list":

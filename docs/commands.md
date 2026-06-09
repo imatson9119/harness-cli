@@ -83,6 +83,7 @@ Supported config keys:
 ```bash
 harness api info
 harness api groups
+harness api groups --search pipeline --limit 20
 harness api list --tag "Pipeline"
 harness api list --method post --search execute
 harness api list --group account-roles --has-body
@@ -102,6 +103,7 @@ it with `--body @file.json`.
 
 Useful discovery filters:
 
+- `harness api groups --search TEXT --limit N`
 - `--search TEXT`
 - `--tag "Display Name"`
 - `--group generated-group`
