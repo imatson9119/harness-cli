@@ -184,6 +184,7 @@ uv run ruff format .
 uv run ruff check .
 uv run mypy src/harness_cli
 uv run python -m compileall -q src tests scripts
+uv build --sdist --wheel
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) and

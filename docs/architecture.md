@@ -41,6 +41,13 @@ layout, JSON highlighting, status styling, and the stderr-only call spinner.
 Color follows `NO_COLOR`, `HARNESS_COLOR=always|never|auto`, and dumb-terminal
 detection. Animation follows `HARNESS_ANIMATION=always|never|auto`.
 
+## Packaging
+
+The endpoint manifest is bundled as package data under
+`harness_cli.data/operations.json`. CI builds both sdist and wheel artifacts and
+smoke-tests an installed wheel by running `harness --version` and a manifest
+lookup command.
+
 ## Generated Commands
 
 Each OpenAPI operation is exposed through:

@@ -39,10 +39,12 @@ uv run python -m unittest
 uv run python -m compileall -q src tests scripts
 uv run ruff check .
 uv run mypy src/harness_cli
+uv build --sdist --wheel
 ```
 
 GitHub Actions runs the same checks through `uv sync --locked --all-extras --dev`
-on Python 3.10 through 3.13, including `ruff format --check .`.
+on Python 3.10 through 3.13, including `ruff format --check .`, package build,
+and an installed-wheel smoke test.
 
 Please keep changes focused. Small, well-documented slices are much easier to
 review than a giant mystery crate of enthusiasm.

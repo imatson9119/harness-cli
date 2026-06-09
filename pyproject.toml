@@ -8,14 +8,14 @@ version = "0.1.0"
 description = "OpenAPI-backed command line interface for Harness APIs."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { file = "LICENSE" }
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Ian Matson" }]
 keywords = ["harness", "cli", "openapi", "devops"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -59,4 +59,3 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 python_version = "3.10"
 strict = true
 packages = ["harness_cli"]
-

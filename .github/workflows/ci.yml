@@ -50,3 +50,13 @@ jobs:
 
       - name: Compile
         run: uv run --frozen python -m compileall -q src tests scripts
+
+      - name: Build package
+        run: uv build --sdist --wheel
+
+      - name: Smoke installed wheel
+        run: |
+          python -m venv .package-smoke
+          .package-smoke/bin/pip --disable-pip-version-check install dist/*.whl
+          .package-smoke/bin/harness --version
+          .package-smoke/bin/harness api list --search list-roles-acc --limit 1
