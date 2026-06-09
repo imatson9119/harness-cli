@@ -71,6 +71,7 @@ The request builder:
 - Supports JSON/YAML/form request bodies as raw input.
 - Supports multipart file uploads through `--form` and `--file`.
 - Supports binary response downloads through `--output-file`.
+- Supports guarded pagination helpers for common list endpoint shapes.
 - Provides `--dry-run` so users can inspect requests before sending them.
 
 ## Refreshing Endpoint Coverage

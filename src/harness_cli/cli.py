@@ -24,7 +24,14 @@ from .config import (
     use_profile,
     write_config_file,
 )
-from .http import CallOptions, prepare_request, render_dry_run, render_response, send_request
+from .http import (
+    CallOptions,
+    prepare_request,
+    render_dry_run,
+    render_response,
+    send_paginated_request,
+    send_request,
+)
 from .manifest import HTTP_METHODS, Manifest, Operation, load_manifest
 from .render import CallStatus, print_error, print_json, print_table
 
@@ -43,6 +50,9 @@ GENERIC_CALL_FLAGS = (
     "--content-type",
     "--output",
     "--output-file",
+    "--all",
+    "--all-page-size",
+    "--max-pages",
     "--timeout",
     "--host",
     "--api-key",
@@ -485,10 +495,7 @@ def command_api_list(manifest: Manifest, argv: list[str]) -> int:
     else:
         print_table(
             ["group", "operation", "method", "path", "summary"],
-            [
-                [op.group, op.command, op.method.upper(), op.path, op.summary]
-                for op in limited
-            ],
+            [[op.group, op.command, op.method.upper(), op.path, op.summary] for op in limited],
         )
         if len(operations) > len(limited):
             print(f"... {len(operations) - len(limited)} more. Increase --limit to show more.")
@@ -545,7 +552,15 @@ def call_operation(operation: Operation, argv: list[str]) -> int:
         render_dry_run(request)
         return 0
     with CallStatus(request.method, request.url) as status:
-        response = send_request(request, timeout=options.timeout)
+        if options.all_pages:
+            response = send_paginated_request(
+                operation,
+                config,
+                options,
+                timeout=options.timeout,
+            )
+        else:
+            response = send_request(request, timeout=options.timeout)
         status.done(response.status)
     render_response(
         response,
@@ -570,6 +585,9 @@ def parse_call_options(operation: Operation, argv: list[str], config: HarnessCon
     no_auth = False
     output = config.default_output
     output_file: str | None = None
+    all_pages = False
+    all_page_size: int | None = None
+    max_pages = 100
     timeout = 30.0
     host: str | None = None
     api_key: str | None = None
@@ -631,6 +649,19 @@ def parse_call_options(operation: Operation, argv: list[str], config: HarnessCon
                 raise ValueError("--output must be json, raw, or table")
         elif token == "--output-file":
             output_file, index = _consume_value(argv, index)
+        elif token == "--all":
+            all_pages = True
+            index += 1
+        elif token == "--all-page-size":
+            value, index = _consume_value(argv, index)
+            all_page_size = int(value)
+            if all_page_size <= 0:
+                raise ValueError("--all-page-size must be greater than zero")
+        elif token == "--max-pages":
+            value, index = _consume_value(argv, index)
+            max_pages = int(value)
+            if max_pages <= 0:
+                raise ValueError("--max-pages must be greater than zero")
         elif token == "--timeout":
             value, index = _consume_value(argv, index)
             timeout = float(value)
@@ -656,6 +687,9 @@ def parse_call_options(operation: Operation, argv: list[str], config: HarnessCon
         else:
             raise ValueError(f"Unexpected argument: {token}")
 
+    if not all_pages and (all_page_size is not None or max_pages != 100):
+        raise ValueError("--all-page-size and --max-pages require --all")
+
     return CallOptions(
         path_values=path_values,
         query_values=query_values,
@@ -670,6 +704,9 @@ def parse_call_options(operation: Operation, argv: list[str], config: HarnessCon
         no_auth=no_auth,
         output=output,
         output_file=output_file,
+        all_pages=all_pages,
+        all_page_size=all_page_size,
+        max_pages=max_pages,
         timeout=timeout,
         host=host,
         api_key=api_key,
@@ -731,7 +768,7 @@ def print_operation_help(operation: Operation) -> None:
     print()
     print(
         "Generic flags: --path, --query, --header, --param, --body, --form, --file, "
-        "--output-file, --dry-run, --include"
+        "--output-file, --all, --all-page-size, --max-pages, --dry-run, --include"
     )
 
 

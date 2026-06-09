@@ -37,9 +37,9 @@ class RenderTests(unittest.TestCase):
         with patch.dict(os.environ, {"HARNESS_COLOR": "always"}, clear=True):
             output = colorize_json('{"ok": true, "name": "demo"}')
 
-        self.assertIn("\033[36m\"ok\"\033[0m", output)
+        self.assertIn('\033[36m"ok"\033[0m', output)
         self.assertIn("\033[33mtrue\033[0m", output)
-        self.assertIn("\033[32m\"demo\"\033[0m", output)
+        self.assertIn('\033[32m"demo"\033[0m', output)
 
     def test_print_data_table_unwraps_common_list_payloads(self) -> None:
         stdout = io.StringIO()

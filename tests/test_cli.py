@@ -37,6 +37,27 @@ class CliTests(unittest.TestCase):
         self.assertEqual(options.output, "table")
         self.assertEqual(options.param_values["limit"], "5")
 
+    def test_dynamic_call_parses_pagination_helpers(self) -> None:
+        manifest = load_manifest()
+        operation = manifest.by_operation_id["list-roles-acc"]
+
+        options = parse_call_options(
+            operation,
+            ["--all", "--all-page-size", "100", "--max-pages", "3"],
+            HarnessConfig(),
+        )
+
+        self.assertTrue(options.all_pages)
+        self.assertEqual(options.all_page_size, 100)
+        self.assertEqual(options.max_pages, 3)
+
+    def test_pagination_tuning_flags_require_all(self) -> None:
+        manifest = load_manifest()
+        operation = manifest.by_operation_id["list-roles-acc"]
+
+        with self.assertRaisesRegex(ValueError, "require --all"):
+            parse_call_options(operation, ["--max-pages", "3"], HarnessConfig())
+
     def test_dynamic_call_parses_form_and_file_parameters(self) -> None:
         manifest = load_manifest()
         operation = manifest.by_operation_id["uploadSignature"]

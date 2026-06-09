@@ -8,8 +8,9 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
+from typing import Any
 
 from .config import HarnessConfig, redact_secret
 from .manifest import Operation, Parameter
@@ -33,6 +34,9 @@ class CallOptions:
     no_auth: bool = False
     output: str = "json"
     output_file: str | None = None
+    all_pages: bool = False
+    all_page_size: int | None = None
+    max_pages: int = 100
     timeout: float = 30.0
     host: str | None = None
     api_key: str | None = None
@@ -57,6 +61,15 @@ class Response:
     status: int
     headers: dict[str, str]
     body: bytes
+
+
+@dataclass(frozen=True)
+class PaginationPlan:
+    kind: str
+    page_param: str | None
+    size_param: str | None
+    cursor_param: str | None
+    start: int
 
 
 def prepare_request(
@@ -105,6 +118,63 @@ def send_request(request: PreparedRequest, *, timeout: float) -> Response:
             headers=dict(exc.headers.items()),
             body=exc.read(),
         )
+
+
+def send_paginated_request(
+    operation: Operation,
+    config: HarnessConfig,
+    options: CallOptions,
+    *,
+    timeout: float,
+) -> Response:
+    plan = _pagination_plan(operation)
+    if not plan:
+        raise ValueError(
+            "--all requires query pagination parameters like page/limit, "
+            "pageIndex/pageSize, offset/limit, or pageToken."
+        )
+    collected: list[Any] = []
+    last_response: Response | None = None
+    cursor: str | None = None
+    page_or_offset = plan.start
+
+    for page_count in range(options.max_pages):
+        page_options = replace(
+            options,
+            query_values=_paginated_query_values(options, plan, page_or_offset, cursor),
+        )
+        request = prepare_request(operation, config, page_options)
+        response = send_request(request, timeout=timeout)
+        last_response = response
+        if response.status >= 400:
+            return response
+        data = _json_body(response)
+        if data is None:
+            return response
+        items = _items_from_json(data)
+        collected.extend(items)
+
+        if plan.kind == "cursor":
+            cursor = _next_token(data)
+            if not cursor:
+                break
+        else:
+            limit = _effective_page_size(options, plan)
+            total_pages = _total_pages(data)
+            if not items:
+                break
+            if total_pages is not None and page_count + 1 >= total_pages:
+                break
+            if limit is not None and len(items) < limit:
+                break
+            page_or_offset = page_or_offset + (len(items) if plan.kind == "offset" else 1)
+    if last_response is None:
+        return Response(status=200, headers={}, body=b"[]")
+    return Response(
+        status=last_response.status,
+        headers=last_response.headers,
+        body=json.dumps(collected, indent=2, sort_keys=True).encode("utf-8"),
+    )
 
 
 def render_response(
@@ -221,6 +291,154 @@ def _parameters_in(operation: Operation, location: str) -> list[Parameter]:
     return [parameter for parameter in operation.parameters if parameter.location == location]
 
 
+def _pagination_plan(operation: Operation) -> PaginationPlan | None:
+    query_params = {parameter.name: parameter for parameter in _parameters_in(operation, "query")}
+    if "pageToken" in query_params:
+        return PaginationPlan(
+            "cursor",
+            None,
+            _first_present(query_params, ["pageSize", "limit", "size"]),
+            "pageToken",
+            0,
+        )
+    if "cursor" in query_params:
+        return PaginationPlan(
+            "cursor",
+            None,
+            _first_present(query_params, ["limit", "pageSize", "size"]),
+            "cursor",
+            0,
+        )
+    for page_param, size_param in [
+        ("page", "limit"),
+        ("pageIndex", "pageSize"),
+        ("pageNumber", "pageSize"),
+    ]:
+        if page_param in query_params and size_param in query_params:
+            return PaginationPlan(
+                "page",
+                page_param,
+                size_param,
+                None,
+                _int_value(query_params[page_param].default, 0),
+            )
+    if "offset" in query_params and "limit" in query_params:
+        return PaginationPlan(
+            "offset",
+            "offset",
+            "limit",
+            None,
+            _int_value(query_params["offset"].default, 0),
+        )
+    return None
+
+
+def _paginated_query_values(
+    options: CallOptions,
+    plan: PaginationPlan,
+    page_or_offset: int,
+    cursor: str | None,
+) -> dict[str, list[str]]:
+    query = {key: list(values) for key, values in options.query_values.items()}
+    if plan.size_param and options.all_page_size is not None:
+        query[plan.size_param] = [str(options.all_page_size)]
+    if plan.kind == "cursor":
+        if plan.cursor_param and cursor:
+            query[plan.cursor_param] = [cursor]
+    elif plan.page_param:
+        query[plan.page_param] = [str(page_or_offset)]
+    return query
+
+
+def _effective_page_size(options: CallOptions, plan: PaginationPlan) -> int | None:
+    if options.all_page_size is not None:
+        return options.all_page_size
+    if plan.size_param:
+        values = options.query_values.get(plan.size_param)
+        if values:
+            return _optional_int(values[-1])
+        value = options.param_values.get(plan.size_param)
+        if value is not None:
+            return _optional_int(value)
+    return None
+
+
+def _json_body(response: Response) -> Any | None:
+    try:
+        return json.loads(response.body.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return None
+
+
+def _items_from_json(data: Any) -> list[Any]:
+    if isinstance(data, list):
+        return data
+    if isinstance(data, dict):
+        for key in ("data", "items", "content", "results", "resources", "records"):
+            value = data.get(key)
+            if isinstance(value, list):
+                return value
+            if isinstance(value, dict):
+                nested = _items_from_json(value)
+                if nested:
+                    return nested
+    return [data] if data not in (None, {}) else []
+
+
+def _next_token(data: Any) -> str | None:
+    keys = (
+        "nextPageToken",
+        "next_page_token",
+        "nextToken",
+        "next_token",
+        "nextCursor",
+        "next_cursor",
+    )
+    value = _find_first(data, keys)
+    return str(value) if value not in (None, "") else None
+
+
+def _total_pages(data: Any) -> int | None:
+    value = _find_first(data, ("totalPages", "total_pages", "pageCount", "page_count"))
+    return _optional_int(value)
+
+
+def _find_first(data: Any, keys: tuple[str, ...]) -> Any:
+    if not isinstance(data, dict):
+        return None
+    for key in keys:
+        if key in data:
+            return data[key]
+    for nested_key in ("pagination", "pageInfo", "page_info", "meta", "metadata", "data"):
+        nested = data.get(nested_key)
+        if isinstance(nested, dict):
+            value = _find_first(nested, keys)
+            if value is not None:
+                return value
+    return None
+
+
+def _first_present(values: dict[str, Parameter], keys: list[str]) -> str | None:
+    for key in keys:
+        if key in values:
+            return key
+    return None
+
+
+def _int_value(value: Any, fallback: int) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return fallback
+
+
+def _optional_int(value: Any) -> int | None:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def _content_type(operation: Operation, options: CallOptions) -> str:
     if options.content_type:
         return options.content_type
@@ -303,7 +521,7 @@ def _multipart_body(
                 [
                     f"--{boundary}\r\n".encode(),
                     (
-                        'Content-Disposition: form-data; '
+                        "Content-Disposition: form-data; "
                         f'name="{_quote_header(name)}"; '
                         f'filename="{_quote_header(file_path.name)}"\r\n'
                     ).encode(),

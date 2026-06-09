@@ -2,12 +2,22 @@ from __future__ import annotations
 
 import contextlib
 import io
+import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
+from urllib.parse import parse_qs, urlsplit
 
 from harness_cli.config import HarnessConfig
-from harness_cli.http import CallOptions, Response, prepare_request, render_response
+from harness_cli.http import (
+    CallOptions,
+    PreparedRequest,
+    Response,
+    prepare_request,
+    render_response,
+    send_paginated_request,
+)
 from harness_cli.manifest import load_manifest
 
 
@@ -144,6 +154,76 @@ class HttpTests(unittest.TestCase):
         output = stdout.getvalue()
         self.assertIn("identifier", output)
         self.assertIn("Service", output)
+
+    def test_send_paginated_request_aggregates_page_limit_responses(self) -> None:
+        manifest = load_manifest()
+        operation = manifest.by_operation_id["list-roles-acc"]
+        config = HarnessConfig(api_key="harness-secret-token")
+        seen_urls: list[str] = []
+
+        def fake_send(request: PreparedRequest, *, timeout: float) -> Response:
+            seen_urls.append(request.url)
+            page = len(seen_urls) - 1
+            if page == 0:
+                body = {"data": [{"identifier": "one"}, {"identifier": "two"}], "totalPages": 2}
+            else:
+                body = {"data": [{"identifier": "three"}], "totalPages": 2}
+            return Response(
+                status=200,
+                headers={"Content-Type": "application/json"},
+                body=json.dumps(body).encode("utf-8"),
+            )
+
+        with patch("harness_cli.http.send_request", fake_send):
+            response = send_paginated_request(
+                operation,
+                config,
+                CallOptions(
+                    path_values={},
+                    query_values={},
+                    header_values={},
+                    param_values={},
+                    body=None,
+                    content_type=None,
+                    all_pages=True,
+                    all_page_size=2,
+                ),
+                timeout=30.0,
+            )
+
+        parsed_urls = [urlsplit(url) for url in seen_urls]
+        self.assertEqual([url.path for url in parsed_urls], ["/v1/roles", "/v1/roles"])
+        self.assertEqual(
+            [parse_qs(url.query) for url in parsed_urls],
+            [
+                {"page": ["0"], "limit": ["2"]},
+                {"page": ["1"], "limit": ["2"]},
+            ],
+        )
+        self.assertEqual(
+            json.loads(response.body.decode("utf-8")),
+            [{"identifier": "one"}, {"identifier": "two"}, {"identifier": "three"}],
+        )
+
+    def test_send_paginated_request_rejects_non_paginated_operations(self) -> None:
+        manifest = load_manifest()
+        operation = manifest.by_operation_id["get-role-acc"]
+
+        with self.assertRaisesRegex(ValueError, "--all requires"):
+            send_paginated_request(
+                operation,
+                HarnessConfig(api_key="harness-secret-token"),
+                CallOptions(
+                    path_values={},
+                    query_values={},
+                    header_values={},
+                    param_values={"role": "admin"},
+                    body=None,
+                    content_type=None,
+                    all_pages=True,
+                ),
+                timeout=30.0,
+            )
 
 
 if __name__ == "__main__":

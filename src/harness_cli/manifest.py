@@ -129,9 +129,11 @@ class Manifest:
 
 
 def load_manifest() -> Manifest:
-    with resources.files("harness_cli.data").joinpath("operations.json").open(
-        "r", encoding="utf-8"
-    ) as handle:
+    with (
+        resources.files("harness_cli.data")
+        .joinpath("operations.json")
+        .open("r", encoding="utf-8") as handle
+    ):
         return Manifest(json.load(handle))
 
 
@@ -177,4 +179,3 @@ def _request_body_from_raw(item: dict[str, Any]) -> RequestBody:
         content_types=tuple(item.get("content_types", [])),
         description=item.get("description", ""),
     )
-

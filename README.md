@@ -86,6 +86,12 @@ Render JSON list responses as a table when you want a compact human view:
 harness account-roles list-roles-acc --limit 10 --output table
 ```
 
+Fetch paginated list endpoints until they are exhausted:
+
+```bash
+harness account-roles list-roles-acc --all --all-page-size 100 --output table
+```
+
 Preview the request without sending it:
 
 ```bash
@@ -169,6 +175,7 @@ Install development tooling and run checks:
 
 ```bash
 uv pip install -e ".[dev]"
+uv run ruff format .
 uv run ruff check .
 uv run mypy src/harness_cli
 uv run python -m compileall -q src tests scripts

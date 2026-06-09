@@ -67,6 +67,7 @@ harness api describe execute-a-pipeline
 harness api call list-roles-acc --query limit=10
 harness account-roles list-roles-acc --limit 10
 harness account-roles list-roles-acc --limit 10 --output table
+harness account-roles list-roles-acc --all --all-page-size 100 --output table
 harness account-roles get-role-acc --role my-role
 harness project-services create-service --org my-org --project my-project --body @service.json
 harness api call create-role-acc --body '{"identifier":"demo","name":"Demo"}'
@@ -85,6 +86,9 @@ Useful call flags:
 - `--form key=value`
 - `--file field=@path`
 - `--output-file path`
+- `--all`
+- `--all-page-size 100`
+- `--max-pages 50`
 - `--dry-run`
 - `--include`
 - `--output json|raw|table`
@@ -92,6 +96,11 @@ Useful call flags:
 `--form` and `--file` build multipart request bodies by default. Use
 `--content-type application/x-www-form-urlencoded` with `--form` when an
 endpoint expects URL-encoded form data instead.
+
+`--all` works with endpoints that expose recognizable query pagination
+parameters such as `page`/`limit`, `pageIndex`/`pageSize`,
+`offset`/`limit`, or cursor-style `pageToken`/`cursor`. It stops at
+`--max-pages` as a safety guard.
 
 ## Shell Completion
 
@@ -114,4 +123,11 @@ disabled for pipes, `TERM=dumb`, and `NO_COLOR`.
 HARNESS_COLOR=always harness api list --search pipeline
 HARNESS_ANIMATION=never harness account-roles list-roles-acc --limit 10
 HARNESS_ASCII=1 harness account-roles list-roles-acc --limit 10
+```
+
+## Developer Formatting
+
+```bash
+uv run ruff format .
+uv run ruff check .
 ```

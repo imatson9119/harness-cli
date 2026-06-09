@@ -69,9 +69,7 @@ def load_config(path: Path | None = None) -> HarnessConfig:
         "account": os.environ.get("HARNESS_ACCOUNT", file_data.get("account")),
         "org": os.environ.get("HARNESS_ORG", file_data.get("org")),
         "project": os.environ.get("HARNESS_PROJECT", file_data.get("project")),
-        "default_output": os.environ.get(
-            "HARNESS_OUTPUT", file_data.get("default_output", "json")
-        ),
+        "default_output": os.environ.get("HARNESS_OUTPUT", file_data.get("default_output", "json")),
     }
     return HarnessConfig(
         host=str(merged["host"]).rstrip("/"),
@@ -216,9 +214,7 @@ def _profile_values(raw: dict[str, Any], *, profile: str) -> dict[str, Any]:
 def _config_document(raw: dict[str, Any]) -> dict[str, Any]:
     current = raw.get("current_profile")
     current_profile = (
-        _validate_profile_name(current)
-        if isinstance(current, str) and current
-        else DEFAULT_PROFILE
+        _validate_profile_name(current) if isinstance(current, str) and current else DEFAULT_PROFILE
     )
     return {
         "current_profile": current_profile,
