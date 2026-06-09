@@ -36,6 +36,7 @@ Before opening a PR:
 ```bash
 uv run ruff format .
 uv run python -m unittest
+uv run python scripts/validate_openapi_manifest.py
 uv run python -m compileall -q src tests scripts
 uv run ruff check .
 uv run mypy src/harness_cli

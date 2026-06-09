@@ -9,6 +9,7 @@ harness doctor
 harness auth status
 harness profile list
 harness config list
+harness api info
 harness api list
 harness completion zsh
 ```
@@ -55,6 +56,7 @@ Supported config keys:
 ## API Discovery
 
 ```bash
+harness api info
 harness api groups
 harness api list --tag "Pipeline"
 harness api list --method post --search execute

@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 
 from harness_cli.manifest import load_manifest
+from scripts.validate_openapi_manifest import validate_manifest
 
 
 class ManifestTests(unittest.TestCase):
@@ -28,6 +29,11 @@ class ManifestTests(unittest.TestCase):
         self.assertEqual(operation.operation_id, "list-roles-acc")
         self.assertEqual(operation.method, "get")
         self.assertEqual(operation.path, "/v1/roles")
+
+    def test_generated_manifest_passes_integrity_validation(self) -> None:
+        manifest = load_manifest()
+
+        self.assertEqual(validate_manifest(manifest.raw), [])
 
 
 if __name__ == "__main__":

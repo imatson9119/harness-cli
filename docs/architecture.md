@@ -48,6 +48,13 @@ The endpoint manifest is bundled as package data under
 smoke-tests an installed wheel by running `harness --version` and a manifest
 lookup command.
 
+## Manifest Validation
+
+`scripts/validate_openapi_manifest.py` checks generated manifest integrity:
+counts, unique operation IDs, unique shortcut pairs, valid methods, declared
+groups, docs URLs, and collisions with built-in CLI commands. CI runs this
+validator before packaging.
+
 ## Generated Commands
 
 Each OpenAPI operation is exposed through:

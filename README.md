@@ -159,6 +159,7 @@ harness profile list
 harness profile use prod
 harness config list
 harness config set account acc_123
+harness api info
 harness api groups
 ```
 
@@ -183,6 +184,7 @@ uv pip install -e ".[dev]"
 uv run ruff format .
 uv run ruff check .
 uv run mypy src/harness_cli
+uv run python scripts/validate_openapi_manifest.py
 uv run python -m compileall -q src tests scripts
 uv build --sdist --wheel
 ```

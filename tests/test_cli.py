@@ -23,6 +23,17 @@ class CliTests(unittest.TestCase):
         self.assertEqual(status, 0)
         self.assertIn("list-roles-acc", stdout.getvalue())
 
+    def test_api_info_prints_manifest_metadata(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(["api", "info"])
+
+        output = stdout.getvalue()
+        self.assertEqual(status, 0)
+        self.assertIn("operation_count", output)
+        self.assertIn("source_hash", output)
+
     def test_dynamic_call_parses_kebab_case_parameters(self) -> None:
         manifest = load_manifest()
         operation = manifest.by_operation_id["list-roles-acc"]

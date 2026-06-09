@@ -48,6 +48,9 @@ jobs:
       - name: Test
         run: uv run --frozen python -m unittest
 
+      - name: Validate endpoint manifest
+        run: uv run --frozen python scripts/validate_openapi_manifest.py
+
       - name: Compile
         run: uv run --frozen python -m compileall -q src tests scripts
 
@@ -59,4 +62,7 @@ jobs:
           python -m venv .package-smoke
           .package-smoke/bin/pip --disable-pip-version-check install dist/*.whl
           .package-smoke/bin/harness --version
+          .package-smoke/bin/harness api info
           .package-smoke/bin/harness api list --search list-roles-acc --limit 1
+          .package-smoke/bin/harness config-api list-configs --help
+          .package-smoke/bin/harness version-api get-version --help

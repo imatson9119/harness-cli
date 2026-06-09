@@ -437,6 +437,7 @@ def command_api(argv: list[str]) -> int:
     if not argv or argv[0] in {"-h", "--help", "help"}:
         print(
             """Usage:
+  harness api info
   harness api groups
   harness api list [--search TEXT] [--tag TAG] [--method METHOD]
   harness api describe OPERATION
@@ -447,6 +448,8 @@ def command_api(argv: list[str]) -> int:
     manifest = load_manifest()
     action = argv[0]
     rest = argv[1:]
+    if action == "info":
+        return command_api_info(manifest, rest)
     if action == "groups":
         return command_api_groups(manifest, rest)
     if action == "list":
@@ -456,6 +459,25 @@ def command_api(argv: list[str]) -> int:
     if action == "call":
         return command_api_call(manifest, rest)
     raise ValueError(f"Unknown api action: {action}")
+
+
+def command_api_info(manifest: Manifest, argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(prog="harness api info")
+    parser.add_argument("--json", action="store_true", help="Print JSON.")
+    parsed = parser.parse_args(argv)
+    data = {
+        "api_title": manifest.raw.get("api_title", ""),
+        "api_version": manifest.raw.get("api_version", ""),
+        "operation_count": manifest.operation_count,
+        "group_count": len(manifest.groups),
+        "source": manifest.source,
+        "source_hash": manifest.source_hash,
+    }
+    if parsed.json:
+        print_json(data)
+    else:
+        print_table(["key", "value"], [[key, value] for key, value in data.items()])
+    return 0
 
 
 def command_api_groups(manifest: Manifest, argv: list[str]) -> int:
@@ -983,7 +1005,7 @@ def completion_candidates(manifest: Manifest, words: list[str], current: str) ->
 
 def _api_completion_candidates(manifest: Manifest, words: list[str], current: str) -> list[str]:
     if not words:
-        return _filter_candidates(["call", "describe", "groups", "list"], current)
+        return _filter_candidates(["call", "describe", "groups", "info", "list"], current)
     action = words[0]
     if action in {"call", "describe"}:
         if len(words) == 1:
@@ -994,11 +1016,13 @@ def _api_completion_candidates(manifest: Manifest, words: list[str], current: st
         return []
     if action == "groups":
         return _filter_candidates(["--json", "--help"], current)
+    if action == "info":
+        return _filter_candidates(["--json", "--help"], current)
     if action == "list":
         return _filter_candidates(
             ["--search", "--tag", "--method", "--limit", "--json", "--help"], current
         )
-    return _filter_candidates(["call", "describe", "groups", "list"], current)
+    return _filter_candidates(["call", "describe", "groups", "info", "list"], current)
 
 
 def _config_completion_candidates(words: list[str], current: str) -> list[str]:

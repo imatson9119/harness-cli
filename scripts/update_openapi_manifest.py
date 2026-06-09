@@ -12,6 +12,7 @@ from typing import Any
 SOURCE_URL = "https://apidocs.harness.io/page-data/shared/oas-index.yaml.json"
 DOCS_BASE_URL = "https://apidocs.harness.io"
 HTTP_METHODS = {"get", "put", "post", "delete", "patch", "head", "options", "trace"}
+RESERVED_GROUPS = {"init", "config", "auth", "doctor", "api", "profile", "completion", "version"}
 ROOT = Path(__file__).resolve().parents[1]
 OPERATIONS_PATH = ROOT / "src" / "harness_cli" / "data" / "operations.json"
 COVERAGE_PATH = ROOT / "docs" / "endpoint-coverage.md"
@@ -68,7 +69,8 @@ def build_operations(definition: dict[str, Any]) -> list[dict[str, Any]]:
                 continue
             operation_id = operation.get("operationId") or f"{method}-{path}"
             tag = first_tag(operation, path)
-            group = slugify(tag)
+            docs_group = slugify(tag)
+            group = safe_group_slug(docs_group)
             command = slugify(operation_id)
             key = (group, command)
             command_counts[key] += 1
@@ -95,7 +97,7 @@ def build_operations(definition: dict[str, Any]) -> list[dict[str, Any]]:
                     "request_body": serialize_request_body(
                         resolve_ref(operation.get("requestBody"), components)
                     ),
-                    "docs_url": docs_url(group, command),
+                    "docs_url": docs_url(docs_group, command),
                 }
             )
 
@@ -202,6 +204,12 @@ def slugify(value: Any) -> str:
     text = re.sub(r"[^a-z0-9]+", "-", text)
     text = text.strip("-")
     return text or "operation"
+
+
+def safe_group_slug(group: str) -> str:
+    if group in RESERVED_GROUPS:
+        return f"{group}-api"
+    return group
 
 
 def short_hash(value: str) -> str:

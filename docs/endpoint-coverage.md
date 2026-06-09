@@ -123,7 +123,7 @@ Every operation in the generated manifest is callable through:
 | `compliance-standards-filter` | ComplianceStandardsFilter | 1 |
 | `compliance-stats` | ComplianceStats | 4 |
 | `component` | component | 1 |
-| `config` | Config | 5 |
+| `config-api` | Config | 5 |
 | `config-for-project` | ConfigForProject | 2 |
 | `conflicts` | Conflicts | 1 |
 | `confluence-utils` | Confluence Utils | 1 |
@@ -471,7 +471,7 @@ Every operation in the generated manifest is callable through:
 | `validate-host` | ValidateHost | 1 |
 | `variable-sets` | variable_sets | 21 |
 | `variables` | Variables | 12 |
-| `version` | version | 1 |
+| `version-api` | version | 1 |
 | `webhook` | webhook | 16 |
 | `webhook-event-handler` | Webhook Event Handler | 1 |
 | `webhook-triggers` | Webhook Triggers | 7 |
