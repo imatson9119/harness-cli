@@ -37,6 +37,50 @@ class CliTests(unittest.TestCase):
         self.assertIn("operation_count", output)
         self.assertIn("source_hash", output)
 
+    def test_global_profile_and_config_select_command_context(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "config.json"
+            config_path.write_text(
+                json.dumps(
+                    {
+                        "current_profile": "prod",
+                        "profiles": {
+                            "prod": {"account": "prod-account"},
+                            "stage": {"account": "stage-account"},
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            stdout = io.StringIO()
+
+            with redirect_stdout(stdout):
+                status = main(
+                    [
+                        "--config",
+                        str(config_path),
+                        "--profile",
+                        "stage",
+                        "auth",
+                        "status",
+                    ]
+                )
+
+        data = json.loads(stdout.getvalue())
+        self.assertEqual(status, 0)
+        self.assertEqual(data["profile"], "stage")
+        self.assertEqual(data["account"], "stage-account")
+
+    def test_global_profile_override_restores_environment(self) -> None:
+        with patch.dict(os.environ, {"HARNESS_PROFILE": "prod"}, clear=True):
+            stdout = io.StringIO()
+
+            with redirect_stdout(stdout):
+                status = main(["--profile", "stage", "--version"])
+
+            self.assertEqual(status, 0)
+            self.assertEqual(os.environ["HARNESS_PROFILE"], "prod")
+
     def test_api_body_prints_request_template(self) -> None:
         stdout = io.StringIO()
 
@@ -207,6 +251,24 @@ class CliTests(unittest.TestCase):
 
         self.assertEqual(status, 0)
         self.assertIn("body\n", stdout.getvalue())
+
+    def test_completion_lists_global_options(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(["__complete", "--current", "--p", "--"])
+
+        self.assertEqual(status, 0)
+        self.assertIn("--profile\n", stdout.getvalue())
+
+    def test_completion_resumes_after_global_profile(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(["__complete", "--current", "ap", "--", "--profile", "prod"])
+
+        self.assertEqual(status, 0)
+        self.assertIn("api\n", stdout.getvalue())
 
     def test_completion_lists_api_list_groups(self) -> None:
         stdout = io.StringIO()

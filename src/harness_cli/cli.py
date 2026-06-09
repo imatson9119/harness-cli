@@ -1,17 +1,21 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import difflib
 import getpass
 import json
 import os
 import re
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
 from . import __version__
 from .config import (
+    CONFIG_ENV,
+    PROFILE_ENV,
     VALID_CONFIG_KEYS,
     VALID_OUTPUT_MODES,
     HarnessConfig,
@@ -75,38 +79,18 @@ COMMON_PARAMETER_FLAGS = (
     "--project",
     "--project-identifier",
 )
+GLOBAL_FLAGS = {
+    "--config": CONFIG_ENV,
+    "--profile": PROFILE_ENV,
+}
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = list(sys.argv[1:] if argv is None else argv)
+    raw_args = list(sys.argv[1:] if argv is None else argv)
     try:
-        if not args or args[0] in {"-h", "--help", "help"}:
-            print_top_level_help()
-            return 0
-        if args[0] in {"-V", "--version", "version"}:
-            print(f"harness {__version__}")
-            return 0
-
-        command = args[0]
-        if command == "init":
-            return command_init(args[1:])
-        if command == "config":
-            return command_config(args[1:])
-        if command == "auth":
-            return command_auth(args[1:])
-        if command == "doctor":
-            return command_doctor(args[1:])
-        if command == "api":
-            return command_api(args[1:])
-        if command == "profile":
-            return command_profile(args[1:])
-        if command == "completion":
-            return command_completion(args[1:])
-        if command == "__complete":
-            return command_internal_complete(args[1:])
-
-        manifest = load_manifest()
-        return command_generated(manifest, args)
+        args, env_overrides = parse_global_options(raw_args)
+        with temporary_environ(env_overrides):
+            return dispatch(args)
     except KeyboardInterrupt:
         print_error("Interrupted.")
         return 130
@@ -120,11 +104,83 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
 
+def dispatch(args: list[str]) -> int:
+    if not args or args[0] in {"-h", "--help", "help"}:
+        print_top_level_help()
+        return 0
+    if args[0] in {"-V", "--version", "version"}:
+        print(f"harness {__version__}")
+        return 0
+
+    command = args[0]
+    if command == "init":
+        return command_init(args[1:])
+    if command == "config":
+        return command_config(args[1:])
+    if command == "auth":
+        return command_auth(args[1:])
+    if command == "doctor":
+        return command_doctor(args[1:])
+    if command == "api":
+        return command_api(args[1:])
+    if command == "profile":
+        return command_profile(args[1:])
+    if command == "completion":
+        return command_completion(args[1:])
+    if command == "__complete":
+        return command_internal_complete(args[1:])
+
+    manifest = load_manifest()
+    return command_generated(manifest, args)
+
+
+def parse_global_options(argv: list[str]) -> tuple[list[str], dict[str, str]]:
+    args: list[str] = []
+    overrides: dict[str, str] = {}
+    index = 0
+    while index < len(argv):
+        token = argv[index]
+        if token == "--":
+            args.extend(argv[index + 1 :])
+            break
+        if token in GLOBAL_FLAGS:
+            value, index = _consume_value(argv, index)
+            overrides[GLOBAL_FLAGS[token]] = value
+            continue
+        if token.startswith("--profile="):
+            overrides[PROFILE_ENV] = token.split("=", 1)[1]
+            index += 1
+            continue
+        if token.startswith("--config="):
+            overrides[CONFIG_ENV] = token.split("=", 1)[1]
+            index += 1
+            continue
+        args.extend(argv[index:])
+        break
+    return args, overrides
+
+
+@contextlib.contextmanager
+def temporary_environ(overrides: dict[str, str]) -> Iterator[None]:
+    previous = {key: os.environ.get(key) for key in overrides}
+    try:
+        for key, value in overrides.items():
+            os.environ[key] = value
+        yield
+    finally:
+        for key, previous_value in previous.items():
+            if previous_value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = previous_value
+
+
 def print_top_level_help() -> None:
     print(
         """Harness CLI
 
 Usage:
+  harness [--profile NAME] [--config PATH] COMMAND
   harness init
   harness api list [--search TEXT] [--tag TAG]
   harness api describe OPERATION
@@ -144,8 +200,13 @@ Built-in commands:
   completion  Print shell completion scripts
   version     Print CLI version
 
+Global options:
+  --profile NAME  Use a config profile for this command only
+  --config PATH   Use a config file for this command only
+
 Examples:
   harness init
+  harness --profile prod doctor
   harness api list --search pipeline
   harness api describe list-roles-acc
   harness api body create-role-acc > body.json
@@ -1129,6 +1190,11 @@ def operation_to_dict(operation: Operation) -> dict[str, Any]:
 
 
 def completion_candidates(manifest: Manifest, words: list[str], current: str) -> list[str]:
+    if words and words[-1] == "--profile":
+        return _filter_candidates(sorted(list_profiles()), current)
+    if words and words[-1] == "--config":
+        return []
+    words = strip_leading_global_options(words)
     if words and words[-1] == "--output":
         return _filter_candidates(["json", "raw", "table"], current)
     if words and words[-1] == "--method":
@@ -1171,6 +1237,20 @@ def completion_candidates(manifest: Manifest, words: list[str], current: str) ->
     if command in manifest.groups:
         return _generated_completion_candidates(manifest, command, words[1:], current)
     return []
+
+
+def strip_leading_global_options(words: list[str]) -> list[str]:
+    index = 0
+    while index < len(words):
+        token = words[index]
+        if token in GLOBAL_FLAGS:
+            index += 2
+            continue
+        if token.startswith("--profile=") or token.startswith("--config="):
+            index += 1
+            continue
+        break
+    return words[index:]
 
 
 def _api_completion_candidates(manifest: Manifest, words: list[str], current: str) -> list[str]:
@@ -1263,7 +1343,7 @@ def _operation_flag_completion_candidates(operation: Operation, current: str) ->
 
 
 def _top_level_completion_candidates(manifest: Manifest) -> list[str]:
-    return [*sorted(BUILTIN_COMMANDS), *sorted(manifest.groups)]
+    return ["--config", "--profile", *sorted(BUILTIN_COMMANDS), *sorted(manifest.groups)]
 
 
 def _operation_completion_candidates(manifest: Manifest) -> list[str]:

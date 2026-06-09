@@ -4,6 +4,8 @@
 
 ```bash
 harness --help
+harness --profile prod doctor
+harness --config ./harness.config.json auth status
 harness init
 harness doctor
 harness doctor --network
@@ -27,6 +29,9 @@ harness init --non-interactive --api-key "$HARNESS_API_KEY"
 
 Interactive setup prompts for host, API key, account, org, project, and default
 output mode. `--output` and `default_output` accept `json`, `raw`, or `table`.
+Global `--profile NAME` and `--config PATH` select command context for a single
+invocation without mutating the active profile or requiring exported
+environment variables.
 
 ## Profiles
 

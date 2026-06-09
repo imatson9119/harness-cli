@@ -34,6 +34,10 @@ Local configuration is stored as a profile document:
 Environment variables override the active profile at runtime. `HARNESS_PROFILE`
 selects a profile without modifying the file.
 
+Global CLI flags such as `--profile` and `--config` are implemented as
+temporary environment overrides for one invocation, so command handlers continue
+to use the same config-loading path as environment-variable based workflows.
+
 ## Terminal Rendering
 
 Rendering is intentionally dependency-light. `harness_cli.render` owns table

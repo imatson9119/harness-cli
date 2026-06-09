@@ -43,6 +43,14 @@ harness profile list
 Onboarding asks for host, API key, account, org, project, and default output
 mode. Use `--non-interactive` with flags when scripting setup.
 
+Use global options when you want one command to use a different profile or
+config file without changing your active setup:
+
+```bash
+harness --profile prod doctor
+harness --config ./harness.config.json auth status
+```
+
 You can also use environment variables:
 
 ```bash
@@ -169,6 +177,7 @@ HARNESS_ASCII=1 harness account-roles list-roles-acc --limit 10
 
 ```bash
 harness doctor
+harness --profile prod doctor
 harness doctor --network
 harness auth status
 harness profile list
