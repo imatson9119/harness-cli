@@ -59,8 +59,8 @@ jobs:
 
       - name: Smoke installed wheel
         run: |
-          python -m venv .package-smoke
-          .package-smoke/bin/pip --disable-pip-version-check install dist/*.whl
+          uv venv .package-smoke
+          uv pip install --python .package-smoke/bin/python dist/*.whl
           .package-smoke/bin/harness --version
           .package-smoke/bin/harness api info
           .package-smoke/bin/harness api list --search list-roles-acc --limit 1

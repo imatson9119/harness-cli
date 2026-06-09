@@ -13,11 +13,13 @@ What changed, and why?
 Run the relevant checks before opening the PR:
 
 ```bash
-uv run ruff format .
+uv run ruff format --check .
 uv run ruff check .
 uv run mypy src/harness_cli
 uv run python -m unittest
+uv run python scripts/validate_openapi_manifest.py
 uv run python -m compileall -q src tests scripts
+uv build --sdist --wheel
 ```
 
 Paste any extra command output that proves the changed behavior, especially
