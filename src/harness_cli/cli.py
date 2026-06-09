@@ -805,6 +805,7 @@ def parse_call_options(operation: Operation, argv: list[str], config: HarnessCon
     form_values: dict[str, list[str]] = {}
     file_values: dict[str, list[str]] = {}
     body: str | None = None
+    body_json = False
     content_type: str | None = None
     include = False
     curl = False
@@ -859,8 +860,13 @@ def parse_call_options(operation: Operation, argv: list[str], config: HarnessCon
                 header_values[key] = parsed_value
             else:
                 param_values[key] = parsed_value
-        elif token in {"--body", "--body-json"}:
+        elif token == "--body":
             body, index = _consume_value(argv, index)
+        elif token == "--body-json":
+            body, index = _consume_value(argv, index)
+            body_json = True
+            if content_type is None:
+                content_type = "application/json"
         elif token == "--body-file":
             value, index = _consume_value(argv, index)
             body = f"@{value}"
@@ -932,6 +938,7 @@ def parse_call_options(operation: Operation, argv: list[str], config: HarnessCon
         param_values=param_values,
         body=body,
         content_type=content_type,
+        body_json=body_json,
         form_values=form_values,
         file_values=file_values,
         include=include,

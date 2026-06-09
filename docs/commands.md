@@ -120,6 +120,7 @@ harness account-roles list-roles-acc --all --all-page-size 100 --output table
 harness account-roles list-roles-acc --limit 10 --curl
 harness account-roles get-role-acc --role my-role
 harness project-services create-service --org my-org --project my-project --body @service.json
+harness project-services create-service --org my-org --project my-project --body-json @service.json
 harness api call create-role-acc --body '{"identifier":"demo","name":"Demo"}'
 harness artifact-signing upload-signature --org my-org --project my-project --file signature=@sig.json
 harness file-store download-file --identifier readme --output-file readme.md
@@ -143,6 +144,9 @@ Useful call flags:
 - `--dry-run`
 - `--include`
 - `--output json|raw|table`
+
+`--body-json` accepts inline JSON, `@file`, or `-` stdin, validates the payload
+before sending it, and defaults the content type to `application/json`.
 
 `--form` and `--file` build multipart request bodies by default. Use
 `--content-type application/x-www-form-urlencoded` with `--form` when an

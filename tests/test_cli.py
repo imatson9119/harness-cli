@@ -229,6 +229,31 @@ class CliTests(unittest.TestCase):
         self.assertEqual(options.all_page_size, 100)
         self.assertEqual(options.max_pages, 3)
 
+    def test_body_json_defaults_content_type_and_marks_validation(self) -> None:
+        manifest = load_manifest()
+        operation = manifest.by_operation_id["create-role-acc"]
+
+        options = parse_call_options(
+            operation,
+            ["--body-json", '{"identifier":"demo"}', "--dry-run"],
+            HarnessConfig(),
+        )
+
+        self.assertTrue(options.body_json)
+        self.assertEqual(options.body, '{"identifier":"demo"}')
+        self.assertEqual(options.content_type, "application/json")
+
+    def test_body_json_invalid_input_prints_clean_error(self) -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+
+        with redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            status = main(["api", "call", "create-role-acc", "--body-json", "{nope", "--dry-run"])
+
+        self.assertEqual(status, 2)
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertIn("--body-json received invalid JSON", stderr.getvalue())
+
     def test_generated_call_can_print_curl_without_api_key(self) -> None:
         stdout = io.StringIO()
 

@@ -165,6 +165,76 @@ class HttpTests(unittest.TestCase):
                 ),
             )
 
+    def test_prepare_request_validates_body_json_inline_input(self) -> None:
+        manifest = load_manifest()
+        operation = manifest.by_operation_id["create-role-acc"]
+        config = HarnessConfig(api_key="harness-secret-token")
+
+        request = prepare_request(
+            operation,
+            config,
+            CallOptions(
+                path_values={},
+                query_values={},
+                header_values={},
+                param_values={},
+                body='{"identifier":"demo"}',
+                content_type=None,
+                body_json=True,
+                dry_run=True,
+            ),
+        )
+
+        self.assertEqual(request.headers["Content-Type"], "application/json")
+        self.assertEqual(request.body, b'{"identifier":"demo"}')
+
+    def test_prepare_request_validates_body_json_file_input(self) -> None:
+        manifest = load_manifest()
+        operation = manifest.by_operation_id["create-role-acc"]
+        config = HarnessConfig(api_key="harness-secret-token")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            body_path = Path(temp_dir) / "role.json"
+            body_path.write_text('{"identifier":"demo"}', encoding="utf-8")
+
+            request = prepare_request(
+                operation,
+                config,
+                CallOptions(
+                    path_values={},
+                    query_values={},
+                    header_values={},
+                    param_values={},
+                    body=f"@{body_path}",
+                    content_type=None,
+                    body_json=True,
+                    dry_run=True,
+                ),
+            )
+
+        self.assertEqual(request.body, b'{"identifier":"demo"}')
+
+    def test_prepare_request_rejects_invalid_body_json(self) -> None:
+        manifest = load_manifest()
+        operation = manifest.by_operation_id["create-role-acc"]
+        config = HarnessConfig(api_key="harness-secret-token")
+
+        with self.assertRaisesRegex(ValueError, "--body-json received invalid JSON"):
+            prepare_request(
+                operation,
+                config,
+                CallOptions(
+                    path_values={},
+                    query_values={},
+                    header_values={},
+                    param_values={},
+                    body="{nope",
+                    content_type=None,
+                    body_json=True,
+                    dry_run=True,
+                ),
+            )
+
     def test_render_response_writes_output_file(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             output_path = Path(temp_dir) / "response.bin"

@@ -2,6 +2,9 @@
 
 Thanks for helping make the Harness CLI better.
 
+Please read and follow the [Code of Conduct](CODE_OF_CONDUCT.md). Keep issues
+and pull requests focused on making the CLI clearer, safer, and more useful.
+
 ## Local Setup
 
 ```bash

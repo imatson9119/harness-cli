@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "harness-cli"
 version = "0.1.0"
-description = "OpenAPI-backed command line interface for Harness APIs."
+description = "Polished OpenAPI-backed command line interface for Harness APIs."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"

@@ -40,6 +40,7 @@ class CallOptions:
     param_values: dict[str, str]
     body: str | None
     content_type: str | None
+    body_json: bool = False
     form_values: dict[str, list[str]] = field(default_factory=dict)
     file_values: dict[str, list[str]] = field(default_factory=dict)
     include: bool = False
@@ -527,6 +528,8 @@ def _body_bytes_and_headers(
     body = _body_bytes(options.body)
     if body is None:
         return None, {}
+    if options.body_json:
+        _validate_json_body(body)
     return body, {"Content-Type": _content_type(operation, options)}
 
 
@@ -553,6 +556,15 @@ def _body_bytes(body: str | None) -> bytes | None:
     if body.startswith("@"):
         return Path(body[1:]).read_bytes()
     return body.encode("utf-8")
+
+
+def _validate_json_body(body: bytes) -> None:
+    try:
+        json.loads(body.decode("utf-8"))
+    except UnicodeDecodeError as exc:
+        raise ValueError("--body-json requires UTF-8 JSON input.") from exc
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"--body-json received invalid JSON: {exc.msg} at byte {exc.pos}") from exc
 
 
 def _multipart_body(

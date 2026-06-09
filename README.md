@@ -1,7 +1,7 @@
 # Harness CLI
 
-`harness` is an OpenAPI-backed command line interface for the Harness Software
-Delivery Platform APIs.
+`harness` is a polished, OpenAPI-backed command line interface for the Harness
+Software Delivery Platform APIs.
 
 The CLI is generated from the public Harness API reference at
 <https://apidocs.harness.io/>. The current manifest includes every operation
@@ -137,7 +137,11 @@ Send JSON request bodies from a file:
 
 ```bash
 harness project-services create-service --org my-org --project my-project --body @service.json
+harness project-services create-service --org my-org --project my-project --body-json @service.json
 ```
+
+Use `--body-json` for inline JSON, `@file`, or `-` stdin when you want the CLI
+to validate the payload before sending it.
 
 Upload multipart files for file-oriented endpoints:
 
