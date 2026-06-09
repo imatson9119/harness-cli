@@ -1,0 +1,117 @@
+# Harness CLI
+
+`harness` is an OpenAPI-backed command line interface for the Harness Software
+Delivery Platform APIs.
+
+The CLI is generated from the public Harness API reference at
+<https://apidocs.harness.io/>. The current manifest includes every operation
+published in the Redocly OpenAPI shared data bundle that is practical to expose
+through a generic CLI caller.
+
+## Install
+
+```bash
+uv venv
+uv pip install -e .
+```
+
+Then run:
+
+```bash
+harness --help
+```
+
+## Onboarding
+
+Run the interactive onboarding flow:
+
+```bash
+harness init
+```
+
+The flow stores configuration in `~/.config/harness/config.json` by default and
+sets file permissions to `0600`. You can also use environment variables:
+
+```bash
+export HARNESS_HOST=https://app.harness.io
+export HARNESS_API_KEY=your-token
+export HARNESS_ACCOUNT=your-account-id
+export HARNESS_ORG=optional-org-id
+export HARNESS_PROJECT=optional-project-id
+```
+
+Harness authenticates API calls with the `x-api-key` header.
+
+## Endpoint Commands
+
+List generated operations:
+
+```bash
+harness api list --search pipeline
+harness api list --tag "Account Roles"
+```
+
+Describe an operation:
+
+```bash
+harness api describe list-roles-acc
+```
+
+Call an operation through the stable API dispatcher:
+
+```bash
+harness api call list-roles-acc --query limit=10
+```
+
+Call the same operation through its generated group shortcut:
+
+```bash
+harness account-roles list-roles-acc --limit 10
+```
+
+Preview the request without sending it:
+
+```bash
+harness account-roles list-roles-acc --limit 10 --dry-run
+```
+
+Send JSON request bodies from a file:
+
+```bash
+harness project-services create-service --org my-org --project my-project --body @service.json
+```
+
+## Useful Commands
+
+```bash
+harness doctor
+harness auth status
+harness config list
+harness config set account acc_123
+harness api groups
+```
+
+## Development
+
+Refresh the generated endpoint manifest from Harness API docs:
+
+```bash
+python scripts/update_openapi_manifest.py
+```
+
+Run the standard library test suite:
+
+```bash
+uv run python -m unittest
+```
+
+Install development tooling and run checks:
+
+```bash
+uv pip install -e ".[dev]"
+uv run ruff check .
+uv run python -m compileall -q src tests scripts
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) and
+[docs/architecture.md](docs/architecture.md) for the project shape.
