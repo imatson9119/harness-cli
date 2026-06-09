@@ -30,11 +30,22 @@ harness init
 ```
 
 The flow stores configuration in `~/.config/harness/config.json` by default and
-sets file permissions to `0600`. You can also use environment variables:
+sets file permissions to `0600`. Config is profile-based, so you can keep
+multiple Harness accounts or projects handy:
+
+```bash
+harness init --profile prod
+harness init --profile sandbox
+harness profile use prod
+harness profile list
+```
+
+You can also use environment variables:
 
 ```bash
 export HARNESS_HOST=https://app.harness.io
 export HARNESS_API_KEY=your-token
+export HARNESS_PROFILE=prod
 export HARNESS_ACCOUNT=your-account-id
 export HARNESS_ORG=optional-org-id
 export HARNESS_PROJECT=optional-project-id
@@ -112,6 +123,8 @@ harness completion fish
 ```bash
 harness doctor
 harness auth status
+harness profile list
+harness profile use prod
 harness config list
 harness config set account acc_123
 harness api groups

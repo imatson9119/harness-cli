@@ -12,19 +12,23 @@ from . import __version__
 from .config import (
     VALID_CONFIG_KEYS,
     HarnessConfig,
+    current_profile_name,
     default_config_path,
+    list_profiles,
     load_config,
     read_config_file,
     redact_secret,
+    remove_profile,
     set_config_value,
     unset_config_value,
+    use_profile,
     write_config_file,
 )
 from .http import CallOptions, prepare_request, render_dry_run, render_response, send_request
 from .manifest import HTTP_METHODS, Manifest, Operation, load_manifest
 from .render import print_error, print_json, print_table
 
-BUILTIN_COMMANDS = {"init", "config", "auth", "doctor", "api", "completion", "version"}
+BUILTIN_COMMANDS = {"init", "config", "auth", "doctor", "api", "profile", "completion", "version"}
 PAIR_FLAGS = {"--path", "--query", "--header", "--param"}
 GENERIC_CALL_FLAGS = (
     "--path",
@@ -79,6 +83,8 @@ def main(argv: list[str] | None = None) -> int:
             return command_doctor(args[1:])
         if command == "api":
             return command_api(args[1:])
+        if command == "profile":
+            return command_profile(args[1:])
         if command == "completion":
             return command_completion(args[1:])
         if command == "__complete":
@@ -106,6 +112,7 @@ Usage:
   harness api describe OPERATION
   harness api call OPERATION [flags]
   harness <group> <operation> [flags]
+  harness profile list
   harness completion SHELL
 
 Built-in commands:
@@ -114,6 +121,7 @@ Built-in commands:
   auth        Show authentication status
   doctor      Check local setup and generated manifest
   api         Discover and call generated API operations
+  profile     Manage named local config profiles
   completion  Print shell completion scripts
   version     Print CLI version
 
@@ -134,6 +142,7 @@ def command_init(argv: list[str]) -> int:
     parser.add_argument("--account", default=None, help="Default Harness account identifier.")
     parser.add_argument("--org", default=None, help="Default organization identifier.")
     parser.add_argument("--project", default=None, help="Default project identifier.")
+    parser.add_argument("--profile", default=None, help="Config profile to write.")
     parser.add_argument(
         "--output",
         default=None,
@@ -145,7 +154,7 @@ def command_init(argv: list[str]) -> int:
     parsed = parser.parse_args(argv)
 
     path = default_config_path()
-    existing = {} if parsed.overwrite else read_config_file(path)
+    existing = {} if parsed.overwrite else read_config_file(path, profile=parsed.profile)
 
     values: dict[str, Any] = dict(existing)
     values["host"] = parsed.host or values.get("host") or "https://app.harness.io"
@@ -172,7 +181,7 @@ def command_init(argv: list[str]) -> int:
     if not values.get("api_key"):
         print("No API key saved. Set HARNESS_API_KEY or run `harness config set api_key ...`.")
 
-    written = write_config_file(values, path)
+    written = write_config_file(values, path, profile=parsed.profile)
     print(f"Wrote {written}")
     print("Run `harness doctor` to check the setup.")
     return 0
@@ -220,6 +229,87 @@ Keys: """
     raise ValueError(f"Unknown config action: {action}")
 
 
+def command_profile(argv: list[str]) -> int:
+    if not argv or argv[0] in {"-h", "--help", "help"}:
+        print(
+            """Usage:
+  harness profile list [--json]
+  harness profile current
+  harness profile use NAME
+  harness profile remove NAME --force
+"""
+        )
+        return 0
+    action = argv[0]
+    rest = argv[1:]
+    if action == "list":
+        parser = argparse.ArgumentParser(prog="harness profile list")
+        parser.add_argument("--json", action="store_true", help="Print JSON.")
+        parsed = parser.parse_args(rest)
+        return command_profile_list(parsed.json)
+    if action == "current":
+        if rest:
+            raise ValueError("Usage: harness profile current")
+        profile = current_profile_name() or "default"
+        print(profile)
+        return 0
+    if action == "use":
+        if len(rest) != 1:
+            raise ValueError("Usage: harness profile use NAME")
+        path = use_profile(rest[0])
+        print(f"Active profile: {rest[0]}")
+        print(f"Wrote {path}")
+        return 0
+    if action == "remove":
+        parser = argparse.ArgumentParser(prog="harness profile remove")
+        parser.add_argument("name")
+        parser.add_argument("--force", action="store_true", help="Confirm removal.")
+        parsed = parser.parse_args(rest)
+        if not parsed.force:
+            raise ValueError("Use --force to remove a profile.")
+        path = remove_profile(parsed.name)
+        print(f"Removed profile: {parsed.name}")
+        print(f"Wrote {path}")
+        return 0
+    raise ValueError(f"Unknown profile action: {action}")
+
+
+def command_profile_list(json_output: bool) -> int:
+    profiles = list_profiles()
+    active = current_profile_name() or ("default" if "default" in profiles else None)
+    rows = [
+        {
+            "profile": name,
+            "active": name == active,
+            "has_api_key": bool(values.get("api_key")),
+            "host": values.get("host", "https://app.harness.io"),
+            "account": values.get("account"),
+            "org": values.get("org"),
+            "project": values.get("project"),
+        }
+        for name, values in sorted(profiles.items())
+    ]
+    if json_output:
+        print_json(rows)
+    else:
+        print_table(
+            ["profile", "active", "host", "account", "org", "project", "api_key"],
+            [
+                [
+                    row["profile"],
+                    "yes" if row["active"] else "",
+                    row["host"],
+                    row["account"] or "",
+                    row["org"] or "",
+                    row["project"] or "",
+                    "yes" if row["has_api_key"] else "",
+                ]
+                for row in rows
+            ],
+        )
+    return 0
+
+
 def command_auth(argv: list[str]) -> int:
     if argv and argv[0] not in {"status", "-h", "--help", "help"}:
         raise ValueError(f"Unknown auth action: {argv[0]}")
@@ -234,6 +324,7 @@ def command_auth(argv: list[str]) -> int:
         "account": config.account,
         "org": config.org,
         "project": config.project,
+        "profile": config.profile,
     }
     print_json(data)
     return 0
@@ -262,6 +353,7 @@ def command_doctor(argv: list[str]) -> int:
         "ok": not issues,
         "config_path": str(config_path),
         "host": config.host,
+        "profile": config.profile,
         "has_api_key": bool(config.api_key),
         "operation_count": manifest.operation_count,
         "group_count": len(manifest.groups),
@@ -272,6 +364,7 @@ def command_doctor(argv: list[str]) -> int:
         print_json(data)
     else:
         print(f"Config: {config_path}")
+        print(f"Profile: {config.profile}")
         print(f"Host: {config.host}")
         print(f"API key: {'configured' if config.api_key else 'missing'}")
         print(f"Generated operations: {manifest.operation_count}")
@@ -721,6 +814,8 @@ def completion_candidates(manifest: Manifest, words: list[str], current: str) ->
         return _filter_candidates(["bash", "fish", "zsh"], current)
     if command == "config":
         return _config_completion_candidates(words[1:], current)
+    if command == "profile":
+        return _profile_completion_candidates(words[1:], current)
     if command == "auth":
         return _filter_candidates(["status"], current) if len(words) == 1 else []
     if command == "doctor":
@@ -733,6 +828,7 @@ def completion_candidates(manifest: Manifest, words: list[str], current: str) ->
                 "--account",
                 "--org",
                 "--project",
+                "--profile",
                 "--output",
                 "--non-interactive",
                 "--overwrite",
@@ -774,6 +870,22 @@ def _config_completion_candidates(words: list[str], current: str) -> list[str]:
     action = words[0]
     if action in {"get", "set", "unset"} and len(words) == 1:
         return _filter_candidates(sorted(VALID_CONFIG_KEYS), current)
+    return []
+
+
+def _profile_completion_candidates(words: list[str], current: str) -> list[str]:
+    actions = ["current", "list", "remove", "use"]
+    if not words:
+        return _filter_candidates(actions, current)
+    action = words[0]
+    if action == "list":
+        return _filter_candidates(["--json", "--help"], current)
+    if action == "remove":
+        if len(words) == 1:
+            return _filter_candidates(sorted(list_profiles()), current)
+        return _filter_candidates(["--force", "--help"], current)
+    if action == "use" and len(words) == 1:
+        return _filter_candidates(sorted(list_profiles()), current)
     return []
 
 

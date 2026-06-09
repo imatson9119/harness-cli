@@ -7,6 +7,7 @@ harness --help
 harness init
 harness doctor
 harness auth status
+harness profile list
 harness config list
 harness api list
 harness completion zsh
@@ -17,8 +18,21 @@ harness completion zsh
 ```bash
 harness init
 harness init --host https://app.harness.io --account acc_123
+harness init --profile prod --account acc_123
 harness init --non-interactive --api-key "$HARNESS_API_KEY"
 ```
+
+## Profiles
+
+```bash
+harness profile list
+harness profile current
+harness profile use prod
+harness profile remove sandbox --force
+```
+
+`HARNESS_PROFILE` selects a profile without changing the config file. `harness
+init --profile NAME` writes onboarding values into a named profile.
 
 ## Configuration
 

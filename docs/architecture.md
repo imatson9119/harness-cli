@@ -15,6 +15,25 @@ Shell completion follows the same pattern: completion scripts call back into the
 CLI so generated groups, operations, and parameter flags stay aligned with the
 manifest.
 
+## Config Profiles
+
+Local configuration is stored as a profile document:
+
+```json
+{
+  "current_profile": "prod",
+  "profiles": {
+    "prod": {
+      "host": "https://app.harness.io",
+      "account": "..."
+    }
+  }
+}
+```
+
+Environment variables override the active profile at runtime. `HARNESS_PROFILE`
+selects a profile without modifying the file.
+
 ## Generated Commands
 
 Each OpenAPI operation is exposed through:

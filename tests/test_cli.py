@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import io
+import os
+import tempfile
 import unittest
 from contextlib import redirect_stdout
+from pathlib import Path
+from unittest.mock import patch
 
 from harness_cli.cli import main, parse_call_options
 from harness_cli.config import HarnessConfig
@@ -121,6 +125,45 @@ class CliTests(unittest.TestCase):
 
         self.assertEqual(status, 0)
         self.assertIn("--limit\n", stdout.getvalue())
+
+    def test_profile_commands_manage_config_profiles(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "config.json"
+            env = {"HARNESS_CONFIG": str(config_path)}
+
+            with patch.dict(os.environ, env, clear=True):
+                stdout = io.StringIO()
+                with redirect_stdout(stdout):
+                    self.assertEqual(
+                        main(
+                            [
+                                "init",
+                                "--non-interactive",
+                                "--profile",
+                                "prod",
+                                "--api-key",
+                                "secret-token",
+                                "--account",
+                                "acc",
+                            ]
+                        ),
+                        0,
+                    )
+
+                stdout = io.StringIO()
+                with redirect_stdout(stdout):
+                    status = main(["profile", "list"])
+
+                self.assertEqual(status, 0)
+                self.assertIn("prod", stdout.getvalue())
+                self.assertIn("yes", stdout.getvalue())
+
+                stdout = io.StringIO()
+                with redirect_stdout(stdout):
+                    status = main(["profile", "current"])
+
+                self.assertEqual(status, 0)
+                self.assertEqual(stdout.getvalue().strip(), "prod")
 
 
 if __name__ == "__main__":
