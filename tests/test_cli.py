@@ -256,6 +256,26 @@ class CliTests(unittest.TestCase):
         self.assertTrue(text.startswith("connector:\n"), text)
         self.assertNotIn("\\n", text)
 
+    def test_api_body_rejects_unwritable_output_file_cleanly(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+
+            with redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                status = main(
+                    [
+                        "api",
+                        "body",
+                        "create-role-acc",
+                        "--output-file",
+                        temp_dir,
+                    ]
+                )
+
+        self.assertEqual(status, 2)
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertIn("Could not write output file", stderr.getvalue())
+
     def test_api_list_filters_to_body_operations_in_group(self) -> None:
         stdout = io.StringIO()
 

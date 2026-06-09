@@ -185,8 +185,8 @@ the sample can be serialized as JSON or YAML; pair it with `--dry-run` when
 exploring an unfamiliar endpoint. For other structured content types, run
 `harness api body OPERATION --content-type TYPE --output-file body.txt`, edit
 the result, and send it with `--body @body.txt --content-type TYPE`.
-Unreadable `@file` body inputs and upload files fail before the request is sent
-with a concise local file error.
+Unreadable `@file` body inputs, upload files, and unwritable output paths fail
+with concise local file errors.
 
 `--host` overrides the Harness base URL for one call. It must be a full
 `http://` or `https://` URL and cannot include query strings or fragments.

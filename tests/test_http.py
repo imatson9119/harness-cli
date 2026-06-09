@@ -467,6 +467,26 @@ class HttpTests(unittest.TestCase):
             self.assertEqual(stdout.getvalue(), "")
             self.assertIn("Wrote", stderr.getvalue())
 
+    def test_render_response_rejects_unwritable_output_file_cleanly(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+
+            with (
+                contextlib.redirect_stdout(stdout),
+                contextlib.redirect_stderr(stderr),
+                self.assertRaisesRegex(ValueError, "Could not write output file"),
+            ):
+                render_response(
+                    Response(status=200, headers={}, body=b"binary-data"),
+                    include=False,
+                    output="json",
+                    output_file=temp_dir,
+                )
+
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertEqual(stderr.getvalue(), "")
+
     def test_render_response_can_print_json_as_table(self) -> None:
         stdout = io.StringIO()
 

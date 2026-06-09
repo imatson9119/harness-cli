@@ -1302,8 +1302,12 @@ def write_text_file(output_file: str, text: str) -> None:
         sys.stdout.write(text)
         return
     path = Path(output_file)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, encoding="utf-8")
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+    except OSError as exc:
+        detail = exc.strerror or str(exc)
+        raise ValueError(f"Could not write output file {path}: {detail}") from exc
     print_notice(f"Wrote {path} ({len(text.encode('utf-8'))} bytes)")
 
 
