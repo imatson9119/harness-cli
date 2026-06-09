@@ -41,9 +41,11 @@ to use the same config-loading path as environment-variable based workflows.
 ## Terminal Rendering
 
 Rendering is intentionally dependency-light. `harness_cli.render` owns table
-layout, JSON highlighting, status styling, and the stderr-only call spinner.
-Color follows `NO_COLOR`, `HARNESS_COLOR=always|never|auto`, and dumb-terminal
-detection. Animation follows `HARNESS_ANIMATION=always|never|auto`.
+layout, table frames, JSON highlighting, status styling, and the stderr-only
+call spinner. Color follows `NO_COLOR`, `HARNESS_COLOR=always|never|auto`, and
+dumb-terminal detection. Table frames follow
+`HARNESS_TABLE_STYLE=auto|unicode|ascii|plain` with plain output for pipes.
+Animation follows `HARNESS_ANIMATION=always|never|auto`.
 
 ## Packaging
 

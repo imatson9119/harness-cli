@@ -8,6 +8,7 @@ import sys
 import threading
 import time
 from collections.abc import Sequence
+from dataclasses import dataclass
 from http import HTTPStatus
 from typing import Any
 from urllib.parse import urlsplit
@@ -42,6 +43,55 @@ PREFERRED_TABLE_COLUMNS = (
 )
 
 
+@dataclass(frozen=True)
+class TableFrame:
+    row_left: str
+    row_separator: str
+    row_right: str
+    top_left: str
+    top_separator: str
+    top_right: str
+    divider_left: str
+    divider_separator: str
+    divider_right: str
+    bottom_left: str
+    bottom_separator: str
+    bottom_right: str
+    horizontal: str
+
+
+ASCII_TABLE_FRAME = TableFrame(
+    row_left="|",
+    row_separator="|",
+    row_right="|",
+    top_left="+",
+    top_separator="+",
+    top_right="+",
+    divider_left="+",
+    divider_separator="+",
+    divider_right="+",
+    bottom_left="+",
+    bottom_separator="+",
+    bottom_right="+",
+    horizontal="-",
+)
+UNICODE_TABLE_FRAME = TableFrame(
+    row_left="│",
+    row_separator="│",
+    row_right="│",
+    top_left="╭",
+    top_separator="┬",
+    top_right="╮",
+    divider_left="├",
+    divider_separator="┼",
+    divider_right="┤",
+    bottom_left="╰",
+    bottom_separator="┴",
+    bottom_right="╯",
+    horizontal="─",
+)
+
+
 def print_json(data: Any) -> None:
     payload = json.dumps(data, indent=2, sort_keys=True)
     if color_enabled(sys.stdout):
@@ -54,14 +104,39 @@ def print_table(headers: Sequence[str], rows: Sequence[Sequence[Any]]) -> None:
         print(stylize("No results.", "dim"))
         return
     width = shutil.get_terminal_size((120, 24)).columns
+    style = table_style(sys.stdout)
     text_rows = [[_clip(str(value), 80) for value in row] for row in rows]
     columns = list(zip(headers, *text_rows, strict=False))
     widths = [max(len(str(value)) for value in column) for column in columns]
-    total = sum(widths) + (3 * (len(widths) - 1))
-    if total > width and widths:
-        overflow = total - width
-        largest = max(range(len(widths)), key=lambda idx: widths[idx])
-        widths[largest] = max(16, widths[largest] - overflow)
+    widths = _fit_table_widths(widths, width, _table_extra_width(style, len(widths)))
+    if style != "plain":
+        frame = UNICODE_TABLE_FRAME if style == "unicode" else ASCII_TABLE_FRAME
+        print(
+            stylize(
+                _format_border(widths, frame.top_left, frame.top_separator, frame.top_right, frame),
+                "dim",
+            )
+        )
+        print(stylize(_format_framed_row(headers, widths, frame), "bold"))
+        print(
+            stylize(
+                _format_border(
+                    widths, frame.divider_left, frame.divider_separator, frame.divider_right, frame
+                ),
+                "dim",
+            )
+        )
+        for row in text_rows:
+            print(_format_framed_row(row, widths, frame))
+        print(
+            stylize(
+                _format_border(
+                    widths, frame.bottom_left, frame.bottom_separator, frame.bottom_right, frame
+                ),
+                "dim",
+            )
+        )
+        return
     print(stylize(_format_row(headers, widths), "bold"))
     print(stylize(_format_row(["-" * item for item in widths], widths), "dim"))
     for row in text_rows:
@@ -136,6 +211,23 @@ def unicode_enabled(stream: Any = sys.stderr) -> bool:
         return False
     encoding = (getattr(stream, "encoding", None) or "").lower()
     return "utf" in encoding
+
+
+def table_style(stream: Any = sys.stdout) -> str:
+    value = os.environ.get("HARNESS_TABLE_STYLE", "auto").lower()
+    if value in {"plain", "pipe", "pipes", "0", "false", "no"}:
+        return "plain"
+    if value in {"ascii", "box", "boxed"}:
+        return "ascii"
+    if value in {"unicode", "rounded", "rich"}:
+        return "ascii" if os.environ.get("HARNESS_ASCII") else "unicode"
+    if value not in {"", "auto"}:
+        return "plain"
+    if not bool(getattr(stream, "isatty", lambda: False)()) or os.environ.get("TERM") == "dumb":
+        return "plain"
+    if unicode_enabled(stream):
+        return "unicode"
+    return "ascii"
 
 
 def glyph(name: str, *, stream: Any = sys.stderr) -> str:
@@ -238,6 +330,44 @@ def _format_row(row: Sequence[Any], widths: Sequence[int]) -> str:
     for value, width in zip(row, widths, strict=False):
         cells.append(_clip(str(value), width).ljust(width))
     return " | ".join(cells).rstrip()
+
+
+def _format_framed_row(row: Sequence[Any], widths: Sequence[int], frame: TableFrame) -> str:
+    cells = []
+    for value, width in zip(row, widths, strict=False):
+        cells.append(f" {_clip(str(value), width).ljust(width)} ")
+    return f"{frame.row_left}{frame.row_separator.join(cells)}{frame.row_right}"
+
+
+def _format_border(
+    widths: Sequence[int],
+    left: str,
+    separator: str,
+    right: str,
+    frame: TableFrame,
+) -> str:
+    cells = [frame.horizontal * (width + 2) for width in widths]
+    return f"{left}{separator.join(cells)}{right}"
+
+
+def _table_extra_width(style: str, column_count: int) -> int:
+    if column_count <= 0:
+        return 0
+    if style == "plain":
+        return 3 * (column_count - 1)
+    return (3 * column_count) + 1
+
+
+def _fit_table_widths(widths: Sequence[int], terminal_width: int, extra_width: int) -> list[int]:
+    fitted = list(widths)
+    while fitted and sum(fitted) + extra_width > terminal_width:
+        candidates = [index for index, width in enumerate(fitted) if width > 16]
+        if not candidates:
+            break
+        largest = max(candidates, key=lambda index: fitted[index])
+        overflow = sum(fitted) + extra_width - terminal_width
+        fitted[largest] = max(16, fitted[largest] - overflow)
+    return fitted
 
 
 def _clip(value: str, width: int) -> str:

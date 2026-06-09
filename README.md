@@ -173,11 +173,12 @@ harness completion fish
 
 ## Terminal Experience
 
-Interactive terminals get colorized tables, highlighted JSON, and a live status
-indicator while API calls are in flight. Scripts still get clean output:
-command data goes to stdout, while status, saved-file messages, and clean
-transport errors go to stderr. HTTP 4xx/5xx responses return exit code `1`
-and still render the response body so scripts can inspect it.
+Interactive terminals get colorized tables, highlighted JSON, Unicode table
+frames, and a live status indicator while API calls are in flight. Scripts
+still get clean output: command data goes to stdout, while status, saved-file
+messages, and clean transport errors go to stderr. HTTP 4xx/5xx responses
+return exit code `1` and still render the response body so scripts can inspect
+it.
 
 Controls:
 
@@ -185,6 +186,8 @@ Controls:
 NO_COLOR=1 harness api list
 HARNESS_COLOR=always harness api list
 HARNESS_ANIMATION=never harness account-roles list-roles-acc --limit 10
+HARNESS_TABLE_STYLE=unicode harness account-roles list-roles-acc --output table
+HARNESS_TABLE_STYLE=plain harness account-roles list-roles-acc --output table
 HARNESS_ASCII=1 harness account-roles list-roles-acc --limit 10
 ```
 

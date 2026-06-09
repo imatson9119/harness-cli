@@ -191,12 +191,15 @@ refreshed endpoint groups and operations are immediately reflected.
 ## Terminal Output
 
 The CLI keeps stdout for command data and uses stderr for progress/status
-messages. Color and animation are automatic for interactive terminals and are
-disabled for pipes, `TERM=dumb`, and `NO_COLOR`.
+messages. Color respects `NO_COLOR`. Table frames and animation are automatic
+for interactive terminals and are disabled for pipes and `TERM=dumb`.
 
 ```bash
 HARNESS_COLOR=always harness api list --search pipeline
 HARNESS_ANIMATION=never harness account-roles list-roles-acc --limit 10
+HARNESS_TABLE_STYLE=unicode harness account-roles list-roles-acc --output table
+HARNESS_TABLE_STYLE=ascii harness account-roles list-roles-acc --output table
+HARNESS_TABLE_STYLE=plain harness account-roles list-roles-acc --output table
 HARNESS_ASCII=1 harness account-roles list-roles-acc --limit 10
 ```
 

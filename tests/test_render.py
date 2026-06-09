@@ -11,6 +11,7 @@ from harness_cli.render import (
     format_http_status,
     print_data_table,
     print_json,
+    print_table,
     stylize,
 )
 
@@ -58,6 +59,62 @@ class RenderTests(unittest.TestCase):
         self.assertIn("identifier", output)
         self.assertIn("one", output)
         self.assertIn("Second", output)
+
+    def test_print_table_stays_plain_without_tty(self) -> None:
+        stdout = io.StringIO()
+
+        with patch.dict(os.environ, {}, clear=True), redirect_stdout(stdout):
+            print_table(["name", "status"], [["svc", "ok"]])
+
+        output = stdout.getvalue()
+        self.assertIn("name | status", output)
+        self.assertNotIn("╭", output)
+        self.assertNotIn("+------", output)
+
+    def test_print_table_can_force_unicode_frame(self) -> None:
+        stdout = io.StringIO()
+
+        with (
+            patch.dict(os.environ, {"HARNESS_TABLE_STYLE": "unicode"}, clear=True),
+            redirect_stdout(stdout),
+        ):
+            print_table(["name", "status"], [["svc", "ok"]])
+
+        output = stdout.getvalue()
+        self.assertIn("╭", output)
+        self.assertIn("┬", output)
+        self.assertIn("│ name │ status │", output)
+        self.assertIn("╰", output)
+
+    def test_print_table_can_force_ascii_frame(self) -> None:
+        stdout = io.StringIO()
+
+        with (
+            patch.dict(os.environ, {"HARNESS_TABLE_STYLE": "ascii"}, clear=True),
+            redirect_stdout(stdout),
+        ):
+            print_table(["name", "status"], [["svc", "ok"]])
+
+        output = stdout.getvalue()
+        self.assertIn("+------+--------+", output)
+        self.assertIn("| name | status |", output)
+
+    def test_harness_ascii_overrides_forced_unicode_table(self) -> None:
+        stdout = io.StringIO()
+
+        with (
+            patch.dict(
+                os.environ,
+                {"HARNESS_TABLE_STYLE": "unicode", "HARNESS_ASCII": "1"},
+                clear=True,
+            ),
+            redirect_stdout(stdout),
+        ):
+            print_table(["name"], [["svc"]])
+
+        output = stdout.getvalue()
+        self.assertIn("+------+", output)
+        self.assertNotIn("╭", output)
 
     def test_print_data_table_uses_requested_columns_and_nested_values(self) -> None:
         stdout = io.StringIO()
