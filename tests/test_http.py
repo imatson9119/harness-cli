@@ -5,6 +5,7 @@ import io
 import json
 import tempfile
 import unittest
+import urllib.error
 from pathlib import Path
 from unittest.mock import patch
 from urllib.parse import parse_qs, urlsplit
@@ -13,10 +14,12 @@ from harness_cli.config import HarnessConfig
 from harness_cli.http import (
     CallOptions,
     PreparedRequest,
+    RequestError,
     Response,
     prepare_request,
     render_response,
     send_paginated_request,
+    send_request,
 )
 from harness_cli.manifest import load_manifest
 
@@ -175,6 +178,18 @@ class HttpTests(unittest.TestCase):
         output = stdout.getvalue()
         self.assertIn("identifier", output)
         self.assertIn("Service", output)
+
+    def test_send_request_converts_transport_errors(self) -> None:
+        request = PreparedRequest("GET", "https://app.harness.io/v1/roles?limit=1", {}, None)
+
+        with (
+            patch(
+                "harness_cli.http.urllib.request.urlopen",
+                side_effect=urllib.error.URLError("offline"),
+            ),
+            self.assertRaisesRegex(RequestError, "GET /v1/roles failed: offline"),
+        ):
+            send_request(request, timeout=30.0)
 
     def test_send_paginated_request_aggregates_page_limit_responses(self) -> None:
         manifest = load_manifest()

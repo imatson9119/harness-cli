@@ -19,6 +19,10 @@ from .render import format_http_status, print_data_table, print_json, print_noti
 PATH_PARAM_RE = re.compile(r"\{([^}]+)\}")
 
 
+class RequestError(RuntimeError):
+    """Raised when a request cannot reach Harness at the transport layer."""
+
+
 @dataclass(frozen=True)
 class CallOptions:
     path_values: dict[str, str]
@@ -118,6 +122,12 @@ def send_request(request: PreparedRequest, *, timeout: float) -> Response:
             headers=dict(exc.headers.items()),
             body=exc.read(),
         )
+    except urllib.error.URLError as exc:
+        raise RequestError(_transport_error_message(request, exc)) from exc
+    except TimeoutError as exc:
+        raise RequestError(_transport_error_message(request, exc)) from exc
+    except OSError as exc:
+        raise RequestError(_transport_error_message(request, exc)) from exc
 
 
 def send_paginated_request(
@@ -564,3 +574,15 @@ def _write_output_file(output_file: str, body: bytes) -> None:
 
 def _quote_header(value: str) -> str:
     return value.replace("\\", "\\\\").replace('"', '\\"').replace("\r", "").replace("\n", "")
+
+
+def _transport_error_message(request: PreparedRequest, error: BaseException) -> str:
+    reason = getattr(error, "reason", None) or error
+    message = str(reason) or error.__class__.__name__
+    return f"{_request_label(request.method, request.url)} failed: {message}"
+
+
+def _request_label(method: str, url: str) -> str:
+    parsed = urllib.parse.urlsplit(url)
+    path = parsed.path or "/"
+    return f"{method.upper()} {path}"

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import io
 import json
 import os
@@ -11,6 +12,7 @@ from unittest.mock import patch
 
 from harness_cli.cli import main, parse_call_options
 from harness_cli.config import HarnessConfig
+from harness_cli.http import RequestError
 from harness_cli.manifest import load_manifest
 
 
@@ -273,6 +275,27 @@ class CliTests(unittest.TestCase):
             self.assertEqual(status, 0)
             self.assertIn("Profile sandbox is ready", stdout.getvalue())
             self.assertEqual(data["profiles"]["sandbox"]["default_output"], "table")
+
+    def test_transport_errors_print_clean_cli_message(self) -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        env = {"HARNESS_API_KEY": "secret-token"}
+
+        with (
+            patch.dict(os.environ, env, clear=True),
+            patch(
+                "harness_cli.cli.send_request",
+                side_effect=RequestError("GET /v1/roles failed: offline"),
+            ),
+            redirect_stdout(stdout),
+            contextlib.redirect_stderr(stderr),
+        ):
+            status = main(["account-roles", "list-roles-acc", "--limit", "1"])
+
+        combined = stdout.getvalue() + stderr.getvalue()
+        self.assertEqual(status, 1)
+        self.assertIn("error: GET /v1/roles failed: offline", stderr.getvalue())
+        self.assertNotIn("Traceback", combined)
 
 
 if __name__ == "__main__":

@@ -142,7 +142,9 @@ harness completion fish
 
 Interactive terminals get colorized tables, highlighted JSON, and a live status
 indicator while API calls are in flight. Scripts still get clean output:
-command data goes to stdout, while status and saved-file messages go to stderr.
+command data goes to stdout, while status, saved-file messages, and clean
+transport errors go to stderr. HTTP 4xx/5xx responses return exit code `1`
+and still render the response body so scripts can inspect it.
 
 Controls:
 

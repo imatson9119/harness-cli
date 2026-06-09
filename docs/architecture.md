@@ -88,6 +88,13 @@ The request builder:
 - Supports guarded pagination helpers for common list endpoint shapes.
 - Provides `--dry-run` so users can inspect requests before sending them.
 
+## Error Handling
+
+Harness HTTP responses are kept response-shaped: 4xx and 5xx bodies are rendered
+and the command exits with status `1`. Transport failures such as DNS,
+connection, or timeout errors are converted into concise CLI errors on stderr so
+users do not see Python tracebacks during normal failure modes.
+
 ## Refreshing Endpoint Coverage
 
 The generator fetches:

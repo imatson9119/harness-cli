@@ -27,6 +27,7 @@ from .config import (
 )
 from .http import (
     CallOptions,
+    RequestError,
     pagination_help,
     prepare_request,
     render_dry_run,
@@ -107,6 +108,9 @@ def main(argv: list[str] | None = None) -> int:
     except KeyboardInterrupt:
         print_error("Interrupted.")
         return 130
+    except RequestError as exc:
+        print_error(str(exc))
+        return 1
     except (KeyError, ValueError) as exc:
         print_error(str(exc))
         return 2
