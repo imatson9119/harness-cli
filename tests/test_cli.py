@@ -175,6 +175,27 @@ class CliTests(unittest.TestCase):
         self.assertTrue(operations)
         self.assertTrue(all("/v1/roles" in item["path"] for item in operations))
 
+    def test_api_list_wide_prints_full_operation_slugs(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(
+                [
+                    "api",
+                    "list",
+                    "--search",
+                    "Create a role assignment",
+                    "--limit",
+                    "1",
+                    "--wide",
+                ]
+            )
+
+        output = stdout.getvalue()
+        self.assertEqual(status, 0)
+        self.assertIn("create-account-scoped-role-assignments", output)
+        self.assertNotIn("create-account-scoped...", output)
+
     def test_api_call_prints_dispatcher_help(self) -> None:
         stdout = io.StringIO()
 
@@ -512,6 +533,15 @@ class CliTests(unittest.TestCase):
 
         self.assertEqual(status, 0)
         self.assertIn("--search\n", stdout.getvalue())
+
+    def test_completion_lists_api_list_wide_flag(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(["__complete", "--current", "--wi", "--", "api", "list"])
+
+        self.assertEqual(status, 0)
+        self.assertIn("--wide\n", stdout.getvalue())
 
     def test_completion_lists_doctor_fix_permissions(self) -> None:
         stdout = io.StringIO()

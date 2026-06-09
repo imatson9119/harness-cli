@@ -149,6 +149,17 @@ class RenderTests(unittest.TestCase):
         self.assertIn("+------+--------+", output)
         self.assertIn("| name | status |", output)
 
+    def test_print_table_wide_mode_preserves_long_cells(self) -> None:
+        stdout = io.StringIO()
+        long_value = "create-account-scoped-role-assignments"
+
+        with redirect_stdout(stdout):
+            print_table(["operation"], [[long_value]], fit_width=False, max_cell_width=None)
+
+        output = stdout.getvalue()
+        self.assertIn(long_value, output)
+        self.assertNotIn("...", output)
+
     def test_harness_ascii_overrides_forced_unicode_table(self) -> None:
         stdout = io.StringIO()
 

@@ -72,6 +72,7 @@ List generated operations:
 
 ```bash
 harness api list --search pipeline
+harness api list --search role --wide
 harness api groups --search pipeline --limit 20
 harness api list --tag "Account Roles"
 harness api list --group account-roles --has-body

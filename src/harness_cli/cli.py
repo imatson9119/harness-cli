@@ -673,6 +673,7 @@ def command_api_groups(manifest: Manifest, argv: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="harness api groups")
     parser.add_argument("--search", default=None, help="Search group slug or tag.")
     parser.add_argument("--limit", type=int, default=100, help="Maximum rows to print.")
+    parser.add_argument("--wide", action="store_true", help="Do not truncate table cells.")
     parser.add_argument("--json", action="store_true", help="Print JSON.")
     parsed = parser.parse_args(argv)
     if parsed.limit <= 0:
@@ -696,6 +697,8 @@ def command_api_groups(manifest: Manifest, argv: list[str]) -> int:
         print_table(
             ["group", "tag", "operations"],
             [[r["group"], r["tag"], r["operations"]] for r in limited],
+            fit_width=not parsed.wide,
+            max_cell_width=None if parsed.wide else 80,
         )
         if len(rows) > len(limited):
             print(f"... {len(rows) - len(limited)} more. Increase --limit to show more.")
@@ -720,6 +723,7 @@ def command_api_list(manifest: Manifest, argv: list[str]) -> int:
         help="Only include deprecated operations.",
     )
     parser.add_argument("--limit", type=int, default=50, help="Maximum rows to print.")
+    parser.add_argument("--wide", action="store_true", help="Do not truncate table cells.")
     parser.add_argument("--json", action="store_true", help="Print JSON.")
     parsed = parser.parse_args(argv)
     operations = manifest.search(
@@ -738,6 +742,8 @@ def command_api_list(manifest: Manifest, argv: list[str]) -> int:
         print_table(
             ["group", "operation", "method", "path", "summary"],
             [[op.group, op.command, op.method.upper(), op.path, op.summary] for op in limited],
+            fit_width=not parsed.wide,
+            max_cell_width=None if parsed.wide else 80,
         )
         if len(operations) > len(limited):
             print(f"... {len(operations) - len(limited)} more. Increase --limit to show more.")
@@ -1454,7 +1460,7 @@ def _api_completion_candidates(manifest: Manifest, words: list[str], current: st
             return _operation_flag_completion_candidates(operation, current)
         return []
     if action == "groups":
-        return _filter_candidates(["--search", "--limit", "--json", "--help"], current)
+        return _filter_candidates(["--search", "--limit", "--wide", "--json", "--help"], current)
     if action == "info":
         return _filter_candidates(["--json", "--help"], current)
     if action == "list":
@@ -1468,6 +1474,7 @@ def _api_completion_candidates(manifest: Manifest, words: list[str], current: st
                 "--has-body",
                 "--deprecated",
                 "--limit",
+                "--wide",
                 "--json",
                 "--help",
             ],

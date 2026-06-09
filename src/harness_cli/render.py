@@ -99,16 +99,23 @@ def print_json(data: Any) -> None:
     print(payload)
 
 
-def print_table(headers: Sequence[str], rows: Sequence[Sequence[Any]]) -> None:
+def print_table(
+    headers: Sequence[str],
+    rows: Sequence[Sequence[Any]],
+    *,
+    fit_width: bool = True,
+    max_cell_width: int | None = 80,
+) -> None:
     if not rows:
         print(stylize("No results.", "dim"))
         return
     width = shutil.get_terminal_size((120, 24)).columns
     style = table_style(sys.stdout)
-    text_rows = [[_clip(str(value), 80) for value in row] for row in rows]
+    text_rows = [[_clip_cell(str(value), max_cell_width) for value in row] for row in rows]
     columns = list(zip(headers, *text_rows, strict=False))
     widths = [max(len(str(value)) for value in column) for column in columns]
-    widths = _fit_table_widths(widths, width, _table_extra_width(style, len(widths)))
+    if fit_width:
+        widths = _fit_table_widths(widths, width, _table_extra_width(style, len(widths)))
     if style != "plain":
         frame = UNICODE_TABLE_FRAME if style == "unicode" else ASCII_TABLE_FRAME
         print(
@@ -388,6 +395,10 @@ def _clip(value: str, width: int) -> str:
     if width <= 3:
         return value[:width]
     return value[: width - 3] + "..."
+
+
+def _clip_cell(value: str, width: int | None) -> str:
+    return value if width is None else _clip(value, width)
 
 
 def _request_label(method: str, url: str) -> str:

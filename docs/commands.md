@@ -86,6 +86,7 @@ harness api groups
 harness api groups --search pipeline --limit 20
 harness api list --tag "Pipeline"
 harness api list --method post --search execute
+harness api list --search role --wide
 harness api list --group account-roles --has-body
 harness api list --path /v1/roles --method post
 harness api describe execute-a-pipeline
@@ -111,6 +112,10 @@ Useful discovery filters:
 - `--path /path-fragment`
 - `--has-body`
 - `--deprecated`
+- `--wide`
+
+Use `--wide` on `api list` or `api groups` when you want copy-friendly tables
+with full command and group names instead of terminal-fitted cells.
 
 ## API Calls
 
