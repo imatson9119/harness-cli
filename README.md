@@ -99,6 +99,7 @@ Call an operation through the stable API dispatcher:
 ```bash
 harness api call --help
 harness api call list-roles-acc --help
+harness api call list-roles-acc --query limit=10 --help
 harness api call list-roles-acc --query limit=10
 ```
 

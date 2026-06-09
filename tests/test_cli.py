@@ -181,6 +181,40 @@ class CliTests(unittest.TestCase):
         self.assertIn("--output json|raw|table", output)
         self.assertIn("--api-key KEY", output)
 
+    def test_api_call_operation_help_works_after_flags(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(["api", "call", "list-roles-acc", "--query", "limit=10", "--help"])
+
+        output = stdout.getvalue()
+        self.assertEqual(status, 0)
+        self.assertIn("Usage: harness account-roles list-roles-acc [flags]", output)
+        self.assertIn("Pagination: Supports --all", output)
+
+    def test_generated_operation_help_works_after_flags(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(["account-roles", "list-roles-acc", "--limit", "10", "--help"])
+
+        output = stdout.getvalue()
+        self.assertEqual(status, 0)
+        self.assertIn("Usage: harness account-roles list-roles-acc [flags]", output)
+        self.assertIn("--limit (query; optional; default: 30)", output)
+
+    def test_help_value_for_body_remains_request_data(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(["api", "call", "create-role-acc", "--body", "help", "--dry-run"])
+
+        output = stdout.getvalue()
+        self.assertEqual(status, 0)
+        self.assertIn("POST https://app.harness.io/v1/roles", output)
+        self.assertIn("\nhelp\n", output)
+        self.assertNotIn("Usage:", output)
+
     def test_dynamic_call_parses_kebab_case_parameters(self) -> None:
         manifest = load_manifest()
         operation = manifest.by_operation_id["list-roles-acc"]

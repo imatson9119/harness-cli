@@ -113,8 +113,10 @@ Useful discovery filters:
 ```bash
 harness api call --help
 harness api call list-roles-acc --help
+harness api call list-roles-acc --query limit=10 --help
 harness api call list-roles-acc --query limit=10
 harness account-roles list-roles-acc --limit 10
+harness account-roles list-roles-acc --limit 10 --help
 harness account-roles list-roles-acc --limit 10 --output table
 harness account-roles list-roles-acc --all --all-page-size 100 --output table
 harness account-roles list-roles-acc --limit 10 --curl
@@ -144,6 +146,10 @@ Useful call flags:
 - `--dry-run`
 - `--include`
 - `--output json|raw|table`
+
+Add `--help` anywhere after an operation name to print that operation's
+parameters, examples, body-template hint, pagination support, and generic call
+flags without sending a request.
 
 `--body-json` accepts inline JSON, `@file`, or `-` stdin, validates the payload
 before sending it, and defaults the content type to `application/json`.

@@ -85,6 +85,24 @@ GLOBAL_FLAGS = {
     "--config": CONFIG_ENV,
     "--profile": PROFILE_ENV,
 }
+HELP_TOKENS = {"-h", "--help", "help"}
+CALL_VALUE_FLAGS = {
+    *PAIR_FLAGS,
+    "--api-key",
+    "--all-page-size",
+    "--body",
+    "--body-file",
+    "--body-json",
+    "--content-type",
+    "--file",
+    "--form",
+    "--host",
+    "--max-pages",
+    "--output",
+    "--output-file",
+    "--timeout",
+}
+CALL_BOOLEAN_FLAGS = {"--all", "--curl", "--dry-run", "--include", "--no-auth"}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -733,11 +751,11 @@ def command_api_body(manifest: Manifest, argv: list[str]) -> int:
 
 
 def command_api_call(manifest: Manifest, argv: list[str]) -> int:
-    if not argv or argv[0] in {"-h", "--help", "help"}:
+    if not argv or argv[0] in HELP_TOKENS:
         print_api_call_help()
         return 0
     operation = resolve_operation(manifest, argv[0])
-    if len(argv) > 1 and argv[1] in {"-h", "--help", "help"}:
+    if call_help_requested(argv[1:]):
         print_operation_help(operation)
         return 0
     return call_operation(operation, argv[1:])
@@ -749,7 +767,7 @@ def command_generated(manifest: Manifest, argv: list[str]) -> int:
         suggestions = difflib.get_close_matches(group, sorted(manifest.groups), n=5)
         hint = f" Did you mean: {', '.join(suggestions)}?" if suggestions else ""
         raise ValueError(f"Unknown command or generated group: {group}.{hint}")
-    if len(argv) == 1 or argv[1] in {"-h", "--help", "help"}:
+    if len(argv) == 1 or argv[1] in HELP_TOKENS:
         print_group_help(manifest, group)
         return 0
     command = argv[1]
@@ -759,10 +777,26 @@ def command_generated(manifest: Manifest, argv: list[str]) -> int:
         suggestions = difflib.get_close_matches(command, available, n=5)
         hint = f" Did you mean: {', '.join(suggestions)}?" if suggestions else ""
         raise ValueError(f"Unknown operation for group {group}: {command}.{hint}")
-    if len(argv) > 2 and argv[2] in {"-h", "--help", "help"}:
+    if call_help_requested(argv[2:]):
         print_operation_help(operation)
         return 0
     return call_operation(operation, argv[2:])
+
+
+def call_help_requested(argv: list[str]) -> bool:
+    index = 0
+    while index < len(argv):
+        token = argv[index]
+        if token in HELP_TOKENS:
+            return True
+        if token in CALL_VALUE_FLAGS:
+            index += 2
+            continue
+        if token.startswith("--") and "=" not in token and token not in CALL_BOOLEAN_FLAGS:
+            index += 2
+            continue
+        index += 1
+    return False
 
 
 def call_operation(operation: Operation, argv: list[str]) -> int:
