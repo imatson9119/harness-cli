@@ -146,7 +146,7 @@ def command_init(argv: list[str]) -> int:
     parser.add_argument(
         "--output",
         default=None,
-        choices=["json", "raw"],
+        choices=["json", "raw", "table"],
         help="Default output mode.",
     )
     parser.add_argument("--non-interactive", action="store_true", help="Do not prompt.")
@@ -627,8 +627,8 @@ def parse_call_options(operation: Operation, argv: list[str], config: HarnessCon
             content_type, index = _consume_value(argv, index)
         elif token == "--output":
             output, index = _consume_value(argv, index)
-            if output not in {"json", "raw"}:
-                raise ValueError("--output must be json or raw")
+            if output not in {"json", "raw", "table"}:
+                raise ValueError("--output must be json, raw, or table")
         elif token == "--output-file":
             output_file, index = _consume_value(argv, index)
         elif token == "--timeout":
@@ -804,7 +804,7 @@ def operation_to_dict(operation: Operation) -> dict[str, Any]:
 
 def completion_candidates(manifest: Manifest, words: list[str], current: str) -> list[str]:
     if words and words[-1] == "--output":
-        return _filter_candidates(["json", "raw"], current)
+        return _filter_candidates(["json", "raw", "table"], current)
     if words and words[-1] == "--method":
         return _filter_candidates(sorted(HTTP_METHODS), current)
 

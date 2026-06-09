@@ -30,6 +30,16 @@ JSON_TOKEN_RE = re.compile(
     r"(?P<null>\bnull\b)|"
     r"(?P<number>-?\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b)"
 )
+PREFERRED_TABLE_COLUMNS = (
+    "identifier",
+    "id",
+    "name",
+    "status",
+    "state",
+    "type",
+    "createdAt",
+    "updatedAt",
+)
 
 
 def print_json(data: Any) -> None:
@@ -56,6 +66,25 @@ def print_table(headers: Sequence[str], rows: Sequence[Sequence[Any]]) -> None:
     print(stylize(_format_row(["-" * item for item in widths], widths), "dim"))
     for row in text_rows:
         print(_format_row(row, widths))
+
+
+def print_data_table(data: Any) -> None:
+    records = _records_from_data(data)
+    if isinstance(records, dict):
+        print_table(["key", "value"], [[key, _cell_value(value)] for key, value in records.items()])
+        return
+    if not records:
+        print("No results.")
+        return
+    if all(isinstance(item, dict) for item in records):
+        dict_records = [item for item in records if isinstance(item, dict)]
+        columns = _table_columns(dict_records)
+        print_table(
+            columns,
+            [[_cell_value(record.get(column)) for column in columns] for record in dict_records],
+        )
+        return
+    print_table(["value"], [[_cell_value(value)] for value in records])
 
 
 def print_error(message: str) -> None:
@@ -213,3 +242,50 @@ def _request_label(method: str, url: str) -> str:
     parsed = urlsplit(url)
     path = parsed.path or "/"
     return f"{method.upper()} {path}"
+
+
+def _records_from_data(data: Any) -> list[Any] | dict[str, Any]:
+    if isinstance(data, list):
+        return data
+    if isinstance(data, dict):
+        for key in ("data", "items", "content", "results", "resources", "records"):
+            value = data.get(key)
+            if isinstance(value, list):
+                return value
+        for value in data.values():
+            if isinstance(value, list):
+                return value
+        return data
+    return [data]
+
+
+def _table_columns(records: Sequence[dict[str, Any]]) -> list[str]:
+    ordered: list[str] = []
+    seen: set[str] = set()
+    for record in records:
+        for key, value in record.items():
+            if key in seen:
+                continue
+            if isinstance(value, dict | list):
+                continue
+            ordered.append(key)
+            seen.add(key)
+    if not ordered:
+        for record in records:
+            for key in record:
+                if key not in seen:
+                    ordered.append(key)
+                    seen.add(key)
+    preferred = [key for key in PREFERRED_TABLE_COLUMNS if key in seen]
+    rest = [key for key in ordered if key not in preferred]
+    return [*preferred, *rest][:8] or ["value"]
+
+
+def _cell_value(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, bool | int | float):
+        return str(value)
+    return json.dumps(value, sort_keys=True, separators=(",", ":"))

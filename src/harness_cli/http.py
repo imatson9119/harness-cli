@@ -13,7 +13,7 @@ from pathlib import Path
 
 from .config import HarnessConfig, redact_secret
 from .manifest import Operation, Parameter
-from .render import format_http_status, print_json, print_notice, stylize
+from .render import format_http_status, print_data_table, print_json, print_notice, stylize
 
 PATH_PARAM_RE = re.compile(r"\{([^}]+)\}")
 
@@ -135,6 +135,9 @@ def render_response(
         sys.stdout.buffer.write(response.body)
         if not response.body.endswith(b"\n"):
             sys.stdout.write("\n")
+        return
+    if output == "table":
+        print_data_table(parsed)
         return
     print_json(parsed)
 

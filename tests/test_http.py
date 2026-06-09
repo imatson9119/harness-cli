@@ -127,6 +127,24 @@ class HttpTests(unittest.TestCase):
             self.assertEqual(stdout.getvalue(), "")
             self.assertIn("Wrote", stderr.getvalue())
 
+    def test_render_response_can_print_json_as_table(self) -> None:
+        stdout = io.StringIO()
+
+        with contextlib.redirect_stdout(stdout):
+            render_response(
+                Response(
+                    status=200,
+                    headers={},
+                    body=b'{"data":[{"identifier":"svc","name":"Service","status":"ok"}]}',
+                ),
+                include=False,
+                output="table",
+            )
+
+        output = stdout.getvalue()
+        self.assertIn("identifier", output)
+        self.assertIn("Service", output)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -27,9 +27,14 @@ class CliTests(unittest.TestCase):
         manifest = load_manifest()
         operation = manifest.by_operation_id["list-roles-acc"]
 
-        options = parse_call_options(operation, ["--limit", "5", "--dry-run"], HarnessConfig())
+        options = parse_call_options(
+            operation,
+            ["--limit", "5", "--output", "table", "--dry-run"],
+            HarnessConfig(),
+        )
 
         self.assertTrue(options.dry_run)
+        self.assertEqual(options.output, "table")
         self.assertEqual(options.param_values["limit"], "5")
 
     def test_dynamic_call_parses_form_and_file_parameters(self) -> None:

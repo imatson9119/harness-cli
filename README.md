@@ -80,6 +80,12 @@ Call the same operation through its generated group shortcut:
 harness account-roles list-roles-acc --limit 10
 ```
 
+Render JSON list responses as a table when you want a compact human view:
+
+```bash
+harness account-roles list-roles-acc --limit 10 --output table
+```
+
 Preview the request without sending it:
 
 ```bash

@@ -66,6 +66,7 @@ harness api describe execute-a-pipeline
 ```bash
 harness api call list-roles-acc --query limit=10
 harness account-roles list-roles-acc --limit 10
+harness account-roles list-roles-acc --limit 10 --output table
 harness account-roles get-role-acc --role my-role
 harness project-services create-service --org my-org --project my-project --body @service.json
 harness api call create-role-acc --body '{"identifier":"demo","name":"Demo"}'
@@ -86,7 +87,7 @@ Useful call flags:
 - `--output-file path`
 - `--dry-run`
 - `--include`
-- `--output json|raw`
+- `--output json|raw|table`
 
 `--form` and `--file` build multipart request bodies by default. Use
 `--content-type application/x-www-form-urlencoded` with `--form` when an
