@@ -372,7 +372,12 @@ def call_operation(operation: Operation, argv: list[str]) -> int:
         render_dry_run(request)
         return 0
     response = send_request(request, timeout=options.timeout)
-    render_response(response, include=options.include, output=options.output)
+    render_response(
+        response,
+        include=options.include,
+        output=options.output,
+        output_file=options.output_file,
+    )
     return 0 if response.status < 400 else 1
 
 
@@ -381,12 +386,15 @@ def parse_call_options(operation: Operation, argv: list[str], config: HarnessCon
     query_values: dict[str, list[str]] = {}
     header_values: dict[str, str] = {}
     param_values: dict[str, str] = {}
+    form_values: dict[str, list[str]] = {}
+    file_values: dict[str, list[str]] = {}
     body: str | None = None
     content_type: str | None = None
     include = False
     dry_run = False
     no_auth = False
     output = config.default_output
+    output_file: str | None = None
     timeout = 30.0
     host: str | None = None
     api_key: str | None = None
@@ -432,12 +440,22 @@ def parse_call_options(operation: Operation, argv: list[str], config: HarnessCon
         elif token == "--body-file":
             value, index = _consume_value(argv, index)
             body = f"@{value}"
+        elif token == "--form":
+            value, index = _consume_value(argv, index)
+            key, parsed_value = _split_pair(value)
+            form_values.setdefault(key, []).append(parsed_value)
+        elif token == "--file":
+            value, index = _consume_value(argv, index)
+            key, parsed_value = _split_pair(value)
+            file_values.setdefault(key, []).append(parsed_value)
         elif token == "--content-type":
             content_type, index = _consume_value(argv, index)
         elif token == "--output":
             output, index = _consume_value(argv, index)
             if output not in {"json", "raw"}:
                 raise ValueError("--output must be json or raw")
+        elif token == "--output-file":
+            output_file, index = _consume_value(argv, index)
         elif token == "--timeout":
             value, index = _consume_value(argv, index)
             timeout = float(value)
@@ -470,10 +488,13 @@ def parse_call_options(operation: Operation, argv: list[str], config: HarnessCon
         param_values=param_values,
         body=body,
         content_type=content_type,
+        form_values=form_values,
+        file_values=file_values,
         include=include,
         dry_run=dry_run,
         no_auth=no_auth,
         output=output,
+        output_file=output_file,
         timeout=timeout,
         host=host,
         api_key=api_key,
@@ -533,7 +554,10 @@ def print_operation_help(operation: Operation) -> None:
         print()
         print(f"Body: {required}; content types: {', '.join(operation.request_body.content_types)}")
     print()
-    print("Generic flags: --path, --query, --header, --param, --body, --dry-run, --include")
+    print(
+        "Generic flags: --path, --query, --header, --param, --body, --form, --file, "
+        "--output-file, --dry-run, --include"
+    )
 
 
 def print_operation_detail(operation: Operation) -> None:

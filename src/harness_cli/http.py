@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import json
+import mimetypes
 import re
 import sys
 import urllib.error
 import urllib.parse
 import urllib.request
-from dataclasses import dataclass
+import uuid
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from .config import HarnessConfig, redact_secret
@@ -23,10 +25,13 @@ class CallOptions:
     param_values: dict[str, str]
     body: str | None
     content_type: str | None
+    form_values: dict[str, list[str]] = field(default_factory=dict)
+    file_values: dict[str, list[str]] = field(default_factory=dict)
     include: bool = False
     dry_run: bool = False
     no_auth: bool = False
     output: str = "json"
+    output_file: str | None = None
     timeout: float = 30.0
     host: str | None = None
     api_key: str | None = None
@@ -74,9 +79,8 @@ def prepare_request(
         if api_key:
             headers["x-api-key"] = api_key
 
-    body = _body_bytes(options.body)
-    if body is not None:
-        headers.setdefault("Content-Type", _content_type(operation, options))
+    body, body_headers = _body_bytes_and_headers(operation, options)
+    headers.update({key: value for key, value in body_headers.items() if key not in headers})
     return PreparedRequest(operation.method.upper(), url, headers, body)
 
 
@@ -102,12 +106,21 @@ def send_request(request: PreparedRequest, *, timeout: float) -> Response:
         )
 
 
-def render_response(response: Response, *, include: bool, output: str) -> None:
+def render_response(
+    response: Response,
+    *,
+    include: bool,
+    output: str,
+    output_file: str | None = None,
+) -> None:
     if include:
         print(f"HTTP {response.status}")
         for key, value in sorted(response.headers.items()):
             print(f"{key}: {value}")
         print()
+    if output_file:
+        _write_output_file(output_file, response.body)
+        return
     if not response.body:
         return
     if output == "raw":
@@ -222,6 +235,36 @@ def _content_type(operation: Operation, options: CallOptions) -> str:
     return "application/json"
 
 
+def _body_bytes_and_headers(
+    operation: Operation,
+    options: CallOptions,
+) -> tuple[bytes | None, dict[str, str]]:
+    has_form = bool(options.form_values or options.file_values)
+    if options.body is not None and has_form:
+        raise ValueError("Use either --body/--body-file or --form/--file, not both.")
+    if has_form:
+        return _form_body_and_headers(operation, options)
+    body = _body_bytes(options.body)
+    if body is None:
+        return None, {}
+    return body, {"Content-Type": _content_type(operation, options)}
+
+
+def _form_body_and_headers(
+    operation: Operation,
+    options: CallOptions,
+) -> tuple[bytes, dict[str, str]]:
+    content_type = options.content_type or _content_type(operation, options)
+    if options.file_values or content_type == "multipart/form-data":
+        body, boundary = _multipart_body(options.form_values, options.file_values)
+        return body, {"Content-Type": f"multipart/form-data; boundary={boundary}"}
+    if content_type == "application/x-www-form-urlencoded":
+        body = urllib.parse.urlencode(options.form_values, doseq=True).encode("utf-8")
+        return body, {"Content-Type": content_type}
+    body, boundary = _multipart_body(options.form_values, options.file_values)
+    return body, {"Content-Type": f"multipart/form-data; boundary={boundary}"}
+
+
 def _body_bytes(body: str | None) -> bytes | None:
     if body is None:
         return None
@@ -230,3 +273,58 @@ def _body_bytes(body: str | None) -> bytes | None:
     if body.startswith("@"):
         return Path(body[1:]).read_bytes()
     return body.encode("utf-8")
+
+
+def _multipart_body(
+    form_values: dict[str, list[str]],
+    file_values: dict[str, list[str]],
+) -> tuple[bytes, str]:
+    boundary = f"harness-cli-{uuid.uuid4().hex}"
+    chunks: list[bytes] = []
+    for name, values in form_values.items():
+        for value in values:
+            chunks.extend(
+                [
+                    f"--{boundary}\r\n".encode(),
+                    f'Content-Disposition: form-data; name="{_quote_header(name)}"\r\n'.encode(),
+                    b"\r\n",
+                    value.encode("utf-8"),
+                    b"\r\n",
+                ]
+            )
+    for name, paths in file_values.items():
+        for value in paths:
+            file_path = Path(value[1:] if value.startswith("@") else value)
+            content_type = mimetypes.guess_type(file_path.name)[0] or "application/octet-stream"
+            chunks.extend(
+                [
+                    f"--{boundary}\r\n".encode(),
+                    (
+                        'Content-Disposition: form-data; '
+                        f'name="{_quote_header(name)}"; '
+                        f'filename="{_quote_header(file_path.name)}"\r\n'
+                    ).encode(),
+                    f"Content-Type: {content_type}\r\n".encode(),
+                    b"\r\n",
+                    file_path.read_bytes(),
+                    b"\r\n",
+                ]
+            )
+    chunks.append(f"--{boundary}--\r\n".encode())
+    return b"".join(chunks), boundary
+
+
+def _write_output_file(output_file: str, body: bytes) -> None:
+    if output_file == "-":
+        sys.stdout.buffer.write(body)
+        if body and not body.endswith(b"\n"):
+            sys.stdout.write("\n")
+        return
+    path = Path(output_file)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(body)
+    print(f"Wrote {path} ({len(body)} bytes)")
+
+
+def _quote_header(value: str) -> str:
+    return value.replace("\\", "\\\\").replace('"', '\\"').replace("\r", "").replace("\n", "")

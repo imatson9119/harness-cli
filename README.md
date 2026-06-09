@@ -81,6 +81,22 @@ Send JSON request bodies from a file:
 harness project-services create-service --org my-org --project my-project --body @service.json
 ```
 
+Upload multipart files for file-oriented endpoints:
+
+```bash
+harness artifact-signing upload-signature \
+  --org my-org \
+  --project my-project \
+  --form note=release \
+  --file signature=@signature.json
+```
+
+Save binary responses:
+
+```bash
+harness file-store download-file --identifier readme --output-file readme.md
+```
+
 ## Useful Commands
 
 ```bash

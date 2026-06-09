@@ -195,7 +195,10 @@ def clean_text(value: Any) -> str:
 
 
 def slugify(value: Any) -> str:
-    text = str(value).strip().lower()
+    text = str(value).strip()
+    text = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1-\2", text)
+    text = re.sub(r"([a-z0-9])([A-Z])", r"\1-\2", text)
+    text = text.lower()
     text = re.sub(r"[^a-z0-9]+", "-", text)
     text = text.strip("-")
     return text or "operation"

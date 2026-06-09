@@ -28,7 +28,30 @@ class CliTests(unittest.TestCase):
         self.assertTrue(options.dry_run)
         self.assertEqual(options.param_values["limit"], "5")
 
+    def test_dynamic_call_parses_form_and_file_parameters(self) -> None:
+        manifest = load_manifest()
+        operation = manifest.by_operation_id["uploadSignature"]
+
+        options = parse_call_options(
+            operation,
+            [
+                "--org",
+                "org",
+                "--project",
+                "proj",
+                "--form",
+                "note=release",
+                "--file",
+                "sig=@sig.txt",
+            ],
+            HarnessConfig(),
+        )
+
+        self.assertEqual(options.param_values["org"], "org")
+        self.assertEqual(options.param_values["project"], "proj")
+        self.assertEqual(options.form_values["note"], ["release"])
+        self.assertEqual(options.file_values["sig"], ["@sig.txt"])
+
 
 if __name__ == "__main__":
     unittest.main()
-

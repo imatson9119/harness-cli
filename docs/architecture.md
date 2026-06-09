@@ -40,6 +40,8 @@ The request builder:
 - Adds query and header parameters from flags.
 - Uses `x-api-key` unless `--no-auth` is provided.
 - Supports JSON/YAML/form request bodies as raw input.
+- Supports multipart file uploads through `--form` and `--file`.
+- Supports binary response downloads through `--output-file`.
 - Provides `--dry-run` so users can inspect requests before sending them.
 
 ## Refreshing Endpoint Coverage
@@ -52,4 +54,3 @@ https://apidocs.harness.io/page-data/shared/oas-index.yaml.json
 
 That file is the Redocly shared-data JSON behind <https://apidocs.harness.io/>.
 It contains the resolved OpenAPI definition used to build the published docs.
-
