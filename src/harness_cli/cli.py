@@ -776,17 +776,20 @@ def command_api_body(manifest: Manifest, argv: list[str]) -> int:
     parsed = parser.parse_args(argv)
     operation = resolve_operation(manifest, parsed.operation)
     content_type, sample = request_body_sample(operation, parsed.content_type)
-    payload: Any = sample
     if parsed.json:
         payload = {
             "operation_id": operation.operation_id,
             "content_type": content_type,
             "body": sample,
         }
-    if parsed.output_file:
-        write_template_file(parsed.output_file, payload)
+        if parsed.output_file:
+            write_json_file(parsed.output_file, payload)
+        else:
+            print_json(payload)
+    elif parsed.output_file:
+        write_text_file(parsed.output_file, body_template_text(content_type, sample))
     else:
-        print_json(payload)
+        print_body_template(content_type, sample)
     return 0
 
 
@@ -1270,8 +1273,29 @@ def request_body_template(
     return selected_content_type, json.dumps(sample, indent=2, sort_keys=True), True
 
 
-def write_template_file(output_file: str, payload: Any) -> None:
+def print_body_template(content_type: str, payload: Any) -> None:
+    if _is_json_content_type(content_type):
+        print_json(payload)
+        return
+    sys.stdout.write(body_template_text(content_type, payload))
+
+
+def body_template_text(content_type: str, payload: Any) -> str:
+    if isinstance(payload, str):
+        text = payload
+    elif _is_yaml_content_type(content_type):
+        text = _yaml_template(payload)
+    else:
+        text = json.dumps(payload, indent=2, sort_keys=True)
+    return text if text.endswith("\n") else text + "\n"
+
+
+def write_json_file(output_file: str, payload: Any) -> None:
     text = json.dumps(payload, indent=2, sort_keys=True) + "\n"
+    write_text_file(output_file, text)
+
+
+def write_text_file(output_file: str, text: str) -> None:
     if output_file == "-":
         sys.stdout.write(text)
         return
@@ -1321,6 +1345,76 @@ def _example_body_flags(operation: Operation) -> str:
 
 def _is_json_content_type(content_type: str) -> bool:
     return content_type == "application/json" or content_type.endswith("+json")
+
+
+def _is_yaml_content_type(content_type: str) -> bool:
+    return "yaml" in content_type
+
+
+def _yaml_template(value: Any, *, indent: int = 0) -> str:
+    return "\n".join(_yaml_lines(value, indent=indent))
+
+
+def _yaml_lines(value: Any, *, indent: int) -> list[str]:
+    pad = " " * indent
+    if isinstance(value, dict):
+        if not value:
+            return [pad + "{}"]
+        lines: list[str] = []
+        for key, item in value.items():
+            key_text = _yaml_scalar(str(key))
+            if isinstance(item, dict | list):
+                lines.append(f"{pad}{key_text}:")
+                lines.extend(_yaml_lines(item, indent=indent + 2))
+            else:
+                lines.append(f"{pad}{key_text}: {_yaml_scalar(item)}")
+        return lines
+    if isinstance(value, list):
+        if not value:
+            return [pad + "[]"]
+        list_lines: list[str] = []
+        for item in value:
+            if isinstance(item, dict):
+                if not item:
+                    list_lines.append(pad + "- {}")
+                    continue
+                first = True
+                for key, nested in item.items():
+                    key_text = _yaml_scalar(str(key))
+                    prefix = "- " if first else "  "
+                    if isinstance(nested, dict | list):
+                        list_lines.append(f"{pad}{prefix}{key_text}:")
+                        list_lines.extend(_yaml_lines(nested, indent=indent + 4))
+                    else:
+                        list_lines.append(f"{pad}{prefix}{key_text}: {_yaml_scalar(nested)}")
+                    first = False
+            elif isinstance(item, list):
+                list_lines.append(pad + "-")
+                list_lines.extend(_yaml_lines(item, indent=indent + 2))
+            else:
+                list_lines.append(f"{pad}- {_yaml_scalar(item)}")
+        return list_lines
+    return [pad + _yaml_scalar(value)]
+
+
+def _yaml_scalar(value: Any) -> str:
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, int | float):
+        return str(value)
+    text = str(value)
+    if not text:
+        return '""'
+    if "\n" in text:
+        return json.dumps(text)
+    lowered = text.lower()
+    if lowered in {"true", "false", "null", "~"}:
+        return json.dumps(text)
+    if re.fullmatch(r"[A-Za-z0-9_./:@+=,-]+(?: [A-Za-z0-9_./:@+=,-]+)*", text):
+        return text
+    return json.dumps(text)
 
 
 def _placeholder(name: str) -> str:

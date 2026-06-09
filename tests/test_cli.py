@@ -152,6 +152,67 @@ class CliTests(unittest.TestCase):
         self.assertEqual(data["content_type"], "application/json")
         self.assertEqual(data["body"]["identifier"], "example_role")
 
+    def test_api_body_prints_raw_yaml_string_template(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(
+                [
+                    "api",
+                    "body",
+                    "create-account-scoped-connector",
+                    "--content-type",
+                    "application/yaml",
+                ]
+            )
+
+        output = stdout.getvalue()
+        self.assertEqual(status, 0)
+        self.assertTrue(output.startswith("connector:\n"), output)
+        self.assertIn("identifier: example_connector", output)
+        self.assertNotIn("\\n", output)
+        self.assertNotIn('"connector:', output)
+
+    def test_api_body_prints_structured_yaml_template(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(
+                [
+                    "api",
+                    "body",
+                    "getAccessControlList",
+                    "--content-type",
+                    "application/yaml",
+                ]
+            )
+
+        output = stdout.getvalue()
+        self.assertEqual(status, 0)
+        self.assertTrue(output.startswith("permissions:\n"), output)
+        self.assertIn("- permission: string", output)
+        self.assertIn("resourceIdentifier: string", output)
+
+    def test_api_body_json_metadata_keeps_yaml_body_wrapped(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(
+                [
+                    "api",
+                    "body",
+                    "create-account-scoped-connector",
+                    "--content-type",
+                    "application/yaml",
+                    "--json",
+                ]
+            )
+
+        data = json.loads(stdout.getvalue())
+        self.assertEqual(status, 0)
+        self.assertEqual(data["content_type"], "application/yaml")
+        self.assertTrue(data["body"].startswith("connector:\n"))
+
     def test_api_body_writes_request_template_file(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             output_path = Path(temp_dir) / "role.json"
@@ -167,6 +228,33 @@ class CliTests(unittest.TestCase):
         self.assertEqual(stdout.getvalue(), "")
         self.assertIn("Wrote", stderr.getvalue())
         self.assertEqual(data["identifier"], "example_role")
+
+    def test_api_body_writes_raw_yaml_template_file(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_path = Path(temp_dir) / "connector.yaml"
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+
+            with redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                status = main(
+                    [
+                        "api",
+                        "body",
+                        "create-account-scoped-connector",
+                        "--content-type",
+                        "application/yaml",
+                        "--output-file",
+                        str(output_path),
+                    ]
+                )
+
+            text = output_path.read_text(encoding="utf-8")
+
+        self.assertEqual(status, 0)
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertIn("Wrote", stderr.getvalue())
+        self.assertTrue(text.startswith("connector:\n"), text)
+        self.assertNotIn("\\n", text)
 
     def test_api_list_filters_to_body_operations_in_group(self) -> None:
         stdout = io.StringIO()

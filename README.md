@@ -97,9 +97,14 @@ Print a request-body template for create/update operations:
 
 ```bash
 harness api body create-role-acc > role.json
+harness api body create-account-scoped-connector --content-type application/yaml > connector.yaml
 harness api body create-role-acc --output-file role.json
 harness api body create-role-acc --json
 ```
+
+JSON templates are pretty-printed as JSON. YAML and other text templates are
+printed as editable raw text; add `--json` when you want metadata such as the
+selected content type wrapped around the body.
 
 Call an operation through the stable API dispatcher:
 
