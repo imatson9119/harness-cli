@@ -65,7 +65,11 @@ export HARNESS_PROJECT=optional-project-id
 
 Harness authenticates API calls with the `x-api-key` header. When an endpoint
 requires the Harness account header, `--account` or the active profile account
-is sent as `Harness-Account`.
+is sent as `Harness-Account`. Profile account, org, and project values are also
+used for common generated endpoint parameter spellings such as
+`accountIdentifier`, `accountId`, `account_id`, `orgIdentifier`,
+`organizationIdentifier`, `projectIdentifier`, and snake-case registry
+identifiers.
 
 ## Endpoint Commands
 

@@ -200,7 +200,9 @@ Dry-run and cURL previews also redact `Authorization`, case variants of
 `x-api-key`, and common token/secret/password-style headers.
 
 `--account` and the active profile account are also used for endpoints that
-expect the `Harness-Account` header.
+expect the `Harness-Account` header. Profile account, org, and project values
+also fill common generated parameter spellings, including camel-case, ID-style,
+and snake-case Harness scope identifiers.
 
 ## Shell Completion
 

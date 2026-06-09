@@ -154,6 +154,131 @@ class HttpTests(unittest.TestCase):
 
         self.assertEqual(request.headers["Harness-Account"], "acc")
 
+    def test_prepare_request_maps_profile_account_to_account_id_query(self) -> None:
+        manifest = load_manifest()
+        operation = manifest.by_operation_id["getSamlLoginTest"]
+        config = HarnessConfig(api_key="harness-secret-token", account="acc")
+
+        request = prepare_request(
+            operation,
+            config,
+            CallOptions(
+                path_values={},
+                query_values={},
+                header_values={},
+                param_values={},
+                body=None,
+                content_type=None,
+                dry_run=True,
+            ),
+        )
+
+        parsed = urlsplit(request.url)
+        self.assertEqual(parsed.path, "/ng/api/authentication-settings/saml-login-test")
+        self.assertEqual(parse_qs(parsed.query), {"accountId": ["acc"]})
+
+    def test_prepare_request_maps_profile_account_to_snake_path_and_query(self) -> None:
+        manifest = load_manifest()
+        operation = manifest.by_operation_id["CreateAlert"]
+        config = HarnessConfig(api_key="harness-secret-token", account="acc")
+
+        request = prepare_request(
+            operation,
+            config,
+            CallOptions(
+                path_values={},
+                query_values={},
+                header_values={},
+                param_values={},
+                body=None,
+                content_type=None,
+                dry_run=True,
+            ),
+        )
+
+        parsed = urlsplit(request.url)
+        self.assertEqual(parsed.path, "/gateway/lw/api/accounts/acc/alerts")
+        self.assertEqual(parse_qs(parsed.query), {"accountIdentifier": ["acc"]})
+
+    def test_prepare_request_maps_profile_scope_to_snake_identifier_queries(self) -> None:
+        manifest = load_manifest()
+        operation = manifest.by_operation_id["AddOciArtifactTags"]
+        config = HarnessConfig(
+            api_key="harness-secret-token",
+            account="acc",
+            org="org",
+            project="proj",
+        )
+
+        request = prepare_request(
+            operation,
+            config,
+            CallOptions(
+                path_values={},
+                query_values={},
+                header_values={},
+                param_values={"registry_identifier": "reg"},
+                body=None,
+                content_type=None,
+                dry_run=True,
+            ),
+        )
+
+        parsed = urlsplit(request.url)
+        self.assertEqual(parsed.path, "/har/api/v2/oci/tags")
+        self.assertEqual(
+            parse_qs(parsed.query),
+            {
+                "account_identifier": ["acc"],
+                "org_identifier": ["org"],
+                "project_identifier": ["proj"],
+                "registry_identifier": ["reg"],
+            },
+        )
+
+    def test_prepare_request_explicit_query_overrides_profile_scope_defaults(self) -> None:
+        manifest = load_manifest()
+        operation = manifest.by_operation_id["getSamlLoginTest"]
+        config = HarnessConfig(api_key="harness-secret-token", account="profile-acc")
+
+        request = prepare_request(
+            operation,
+            config,
+            CallOptions(
+                path_values={},
+                query_values={"accountId": ["manual-acc"]},
+                header_values={},
+                param_values={},
+                body=None,
+                content_type=None,
+                dry_run=True,
+            ),
+        )
+
+        parsed = urlsplit(request.url)
+        self.assertEqual(parse_qs(parsed.query), {"accountId": ["manual-acc"]})
+
+    def test_prepare_request_explicit_header_overrides_profile_account_header(self) -> None:
+        manifest = load_manifest()
+        operation = manifest.by_operation_id["uploadSignature"]
+        config = HarnessConfig(api_key="harness-secret-token", account="profile-acc")
+
+        request = prepare_request(
+            operation,
+            config,
+            CallOptions(
+                path_values={},
+                query_values={},
+                header_values={"Harness-Account": "manual-acc"},
+                param_values={"org": "org", "project": "proj"},
+                body=None,
+                content_type=None,
+                dry_run=True,
+            ),
+        )
+
+        self.assertEqual(request.headers["Harness-Account"], "manual-acc")
+
     def test_prepare_request_builds_multipart_file_body(self) -> None:
         manifest = load_manifest()
         operation = manifest.by_operation_id["uploadSignature"]

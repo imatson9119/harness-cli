@@ -93,6 +93,12 @@ The request builder:
 
 - Resolves path parameters from operation metadata.
 - Adds query and header parameters from flags.
+- Expands configured account, org, and project profile defaults across common
+  Harness scope aliases such as `accountIdentifier`, `accountId`, `account_id`,
+  `orgIdentifier`, `organizationIdentifier`, `projectIdentifier`, and
+  snake-case registry identifiers.
+- Preserves explicit `--query` and `--header` values over profile-derived
+  defaults for the same generated parameter.
 - Uses `x-api-key` unless `--no-auth` is provided.
 - Supports JSON/YAML/form request bodies as raw input.
 - Stores request-body samples from OpenAPI examples or compact schema-derived

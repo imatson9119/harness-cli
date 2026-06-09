@@ -908,8 +908,12 @@ def parse_call_options(operation: Operation, argv: list[str], config: HarnessCon
         "account-id": "accountID",
         "org": "org",
         "org-identifier": "orgIdentifier",
+        "org-id": "orgId",
+        "organization": "organization",
+        "organization-identifier": "organizationIdentifier",
         "project": "project",
         "project-identifier": "projectIdentifier",
+        "project-id": "projectId",
     }
     index = 0
     while index < len(argv):

@@ -26,6 +26,29 @@ SENSITIVE_HEADER_NAMES = {
     "xapikey",
 }
 SENSITIVE_HEADER_FRAGMENTS = ("credential", "password", "secret", "token")
+ACCOUNT_PARAMETER_ALIASES = (
+    "account",
+    "accountIdentifier",
+    "accountID",
+    "accountId",
+    "account_id",
+    "account_identifier",
+)
+ORG_PARAMETER_ALIASES = (
+    "org",
+    "orgIdentifier",
+    "organizationIdentifier",
+    "orgId",
+    "org_identifier",
+    "organization",
+    "org_id",
+)
+PROJECT_PARAMETER_ALIASES = (
+    "project",
+    "projectIdentifier",
+    "projectId",
+    "project_identifier",
+)
 
 
 class RequestError(RuntimeError):
@@ -267,22 +290,54 @@ def _merge_parameter_values(
     options: CallOptions,
 ) -> dict[str, str]:
     values: dict[str, str] = {}
-    for key, value in {
-        "account": config.account,
-        "accountIdentifier": config.account,
-        "accountID": config.account,
-        "org": config.org,
-        "orgIdentifier": config.org,
-        "project": config.project,
-        "projectIdentifier": config.project,
-    }.items():
-        if value:
-            values[key] = value
+    _add_scope_aliases(values, ACCOUNT_PARAMETER_ALIASES, config.account)
+    _add_scope_aliases(values, ORG_PARAMETER_ALIASES, config.org)
+    _add_scope_aliases(values, PROJECT_PARAMETER_ALIASES, config.project)
+
+    explicit_values = {**options.param_values, **options.path_values}
     values.update(options.param_values)
     values.update(options.path_values)
-    if "account" in values and "Harness-Account" not in values:
-        values["Harness-Account"] = values["account"]
+    _sync_scope_aliases(values, ACCOUNT_PARAMETER_ALIASES, explicit_values)
+    _sync_scope_aliases(values, ORG_PARAMETER_ALIASES, explicit_values)
+    _sync_scope_aliases(values, PROJECT_PARAMETER_ALIASES, explicit_values)
+
+    if "Harness-Account" not in values:
+        account = _first_scope_value(values, ACCOUNT_PARAMETER_ALIASES)
+        if account:
+            values["Harness-Account"] = account
     return values
+
+
+def _add_scope_aliases(values: dict[str, str], aliases: tuple[str, ...], value: str | None) -> None:
+    if not value:
+        return
+    for alias in aliases:
+        values[alias] = value
+
+
+def _sync_scope_aliases(
+    values: dict[str, str],
+    aliases: tuple[str, ...],
+    explicit_values: dict[str, str],
+) -> None:
+    explicit = _first_scope_value(explicit_values, aliases)
+    if explicit:
+        for alias in aliases:
+            if alias not in explicit_values:
+                values[alias] = explicit
+        return
+    existing = _first_scope_value(values, aliases)
+    if existing:
+        for alias in aliases:
+            values.setdefault(alias, existing)
+
+
+def _first_scope_value(values: dict[str, str], aliases: tuple[str, ...]) -> str | None:
+    for alias in aliases:
+        value = values.get(alias)
+        if value:
+            return value
+    return None
 
 
 def _format_path(operation: Operation, values: dict[str, str]) -> str:
@@ -308,8 +363,8 @@ def _query_values(
 ) -> dict[str, list[str]]:
     query: dict[str, list[str]] = {key: list(value) for key, value in options.query_values.items()}
     for parameter in _parameters_in(operation, "query"):
-        if parameter.name in values:
-            query.setdefault(parameter.name, []).append(str(values[parameter.name]))
+        if parameter.name in values and parameter.name not in query:
+            query[parameter.name] = [str(values[parameter.name])]
     return query
 
 
@@ -320,7 +375,7 @@ def _header_values(
 ) -> dict[str, str]:
     headers = dict(options.header_values)
     for parameter in _parameters_in(operation, "header"):
-        if parameter.name in values:
+        if parameter.name in values and parameter.name not in headers:
             headers[parameter.name] = str(values[parameter.name])
     return headers
 
