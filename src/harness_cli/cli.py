@@ -26,7 +26,7 @@ from .config import (
 )
 from .http import CallOptions, prepare_request, render_dry_run, render_response, send_request
 from .manifest import HTTP_METHODS, Manifest, Operation, load_manifest
-from .render import print_error, print_json, print_table
+from .render import CallStatus, print_error, print_json, print_table
 
 BUILTIN_COMMANDS = {"init", "config", "auth", "doctor", "api", "profile", "completion", "version"}
 PAIR_FLAGS = {"--path", "--query", "--header", "--param"}
@@ -544,7 +544,9 @@ def call_operation(operation: Operation, argv: list[str]) -> int:
     if options.dry_run:
         render_dry_run(request)
         return 0
-    response = send_request(request, timeout=options.timeout)
+    with CallStatus(request.method, request.url) as status:
+        response = send_request(request, timeout=options.timeout)
+        status.done(response.status)
     render_response(
         response,
         include=options.include,

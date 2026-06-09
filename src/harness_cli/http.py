@@ -13,6 +13,7 @@ from pathlib import Path
 
 from .config import HarnessConfig, redact_secret
 from .manifest import Operation, Parameter
+from .render import format_http_status, print_json, print_notice, stylize
 
 PATH_PARAM_RE = re.compile(r"\{([^}]+)\}")
 
@@ -114,9 +115,9 @@ def render_response(
     output_file: str | None = None,
 ) -> None:
     if include:
-        print(f"HTTP {response.status}")
+        print(format_http_status(response.status))
         for key, value in sorted(response.headers.items()):
-            print(f"{key}: {value}")
+            print(f"{stylize(key, 'cyan')}: {value}")
         print()
     if output_file:
         _write_output_file(output_file, response.body)
@@ -135,14 +136,13 @@ def render_response(
         if not response.body.endswith(b"\n"):
             sys.stdout.write("\n")
         return
-    json.dump(parsed, sys.stdout, indent=2, sort_keys=True)
-    sys.stdout.write("\n")
+    print_json(parsed)
 
 
 def render_dry_run(request: PreparedRequest) -> None:
-    print(f"{request.method} {request.url}")
+    print(f"{stylize(request.method, 'blue')} {request.url}")
     for key, value in sorted(request.redacted_headers().items()):
-        print(f"{key}: {value}")
+        print(f"{stylize(key, 'cyan')}: {value}")
     if request.body:
         print()
         try:
@@ -323,7 +323,7 @@ def _write_output_file(output_file: str, body: bytes) -> None:
     path = Path(output_file)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(body)
-    print(f"Wrote {path} ({len(body)} bytes)")
+    print_notice(f"Wrote {path} ({len(body)} bytes)")
 
 
 def _quote_header(value: str) -> str:

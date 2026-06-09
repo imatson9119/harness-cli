@@ -102,3 +102,15 @@ harness completion fish
 
 Completion scripts call the CLI's generated manifest at completion time, so
 refreshed endpoint groups and operations are immediately reflected.
+
+## Terminal Output
+
+The CLI keeps stdout for command data and uses stderr for progress/status
+messages. Color and animation are automatic for interactive terminals and are
+disabled for pipes, `TERM=dumb`, and `NO_COLOR`.
+
+```bash
+HARNESS_COLOR=always harness api list --search pipeline
+HARNESS_ANIMATION=never harness account-roles list-roles-acc --limit 10
+HARNESS_ASCII=1 harness account-roles list-roles-acc --limit 10
+```

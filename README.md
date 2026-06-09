@@ -118,6 +118,21 @@ harness completion zsh
 harness completion fish
 ```
 
+## Terminal Experience
+
+Interactive terminals get colorized tables, highlighted JSON, and a live status
+indicator while API calls are in flight. Scripts still get clean output:
+command data goes to stdout, while status and saved-file messages go to stderr.
+
+Controls:
+
+```bash
+NO_COLOR=1 harness api list
+HARNESS_COLOR=always harness api list
+HARNESS_ANIMATION=never harness account-roles list-roles-acc --limit 10
+HARNESS_ASCII=1 harness account-roles list-roles-acc --limit 10
+```
+
 ## Useful Commands
 
 ```bash

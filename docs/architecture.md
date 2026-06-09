@@ -34,6 +34,13 @@ Local configuration is stored as a profile document:
 Environment variables override the active profile at runtime. `HARNESS_PROFILE`
 selects a profile without modifying the file.
 
+## Terminal Rendering
+
+Rendering is intentionally dependency-light. `harness_cli.render` owns table
+layout, JSON highlighting, status styling, and the stderr-only call spinner.
+Color follows `NO_COLOR`, `HARNESS_COLOR=always|never|auto`, and dumb-terminal
+detection. Animation follows `HARNESS_ANIMATION=always|never|auto`.
+
 ## Generated Commands
 
 Each OpenAPI operation is exposed through:

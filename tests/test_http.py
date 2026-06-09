@@ -113,8 +113,9 @@ class HttpTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             output_path = Path(temp_dir) / "response.bin"
             stdout = io.StringIO()
+            stderr = io.StringIO()
 
-            with contextlib.redirect_stdout(stdout):
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
                 render_response(
                     Response(status=200, headers={}, body=b"binary-data"),
                     include=False,
@@ -123,7 +124,8 @@ class HttpTests(unittest.TestCase):
                 )
 
             self.assertEqual(output_path.read_bytes(), b"binary-data")
-            self.assertIn("Wrote", stdout.getvalue())
+            self.assertEqual(stdout.getvalue(), "")
+            self.assertIn("Wrote", stderr.getvalue())
 
 
 if __name__ == "__main__":
