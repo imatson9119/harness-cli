@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import json
 import os
 import tempfile
 import unittest
@@ -244,6 +245,34 @@ class CliTests(unittest.TestCase):
 
                 self.assertEqual(status, 0)
                 self.assertEqual(stdout.getvalue().strip(), "prod")
+
+    def test_init_writes_output_mode_and_prints_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "config.json"
+            env = {"HARNESS_CONFIG": str(config_path)}
+
+            with patch.dict(os.environ, env, clear=True):
+                stdout = io.StringIO()
+                with redirect_stdout(stdout):
+                    status = main(
+                        [
+                            "init",
+                            "--non-interactive",
+                            "--profile",
+                            "sandbox",
+                            "--api-key",
+                            "secret-token",
+                            "--account",
+                            "acc",
+                            "--output",
+                            "table",
+                        ]
+                    )
+
+            data = json.loads(config_path.read_text(encoding="utf-8"))
+            self.assertEqual(status, 0)
+            self.assertIn("Profile sandbox is ready", stdout.getvalue())
+            self.assertEqual(data["profiles"]["sandbox"]["default_output"], "table")
 
 
 if __name__ == "__main__":

@@ -12,6 +12,7 @@ CONFIG_ENV = "HARNESS_CONFIG"
 PROFILE_ENV = "HARNESS_PROFILE"
 DEFAULT_PROFILE = "default"
 VALID_CONFIG_KEYS = {"host", "api_key", "account", "org", "project", "default_output"}
+VALID_OUTPUT_MODES = {"json", "raw", "table"}
 PROFILE_NAME_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
 
 
@@ -71,13 +72,14 @@ def load_config(path: Path | None = None) -> HarnessConfig:
         "project": os.environ.get("HARNESS_PROJECT", file_data.get("project")),
         "default_output": os.environ.get("HARNESS_OUTPUT", file_data.get("default_output", "json")),
     }
+    default_output = _validate_output_mode(merged["default_output"])
     return HarnessConfig(
         host=str(merged["host"]).rstrip("/"),
         api_key=_optional_string(merged["api_key"]),
         account=_optional_string(merged["account"]),
         org=_optional_string(merged["org"]),
         project=_optional_string(merged["project"]),
-        default_output=str(merged["default_output"] or "json"),
+        default_output=default_output,
         profile=profile,
     )
 
@@ -239,7 +241,10 @@ def _profiles_from_document(raw: dict[str, Any]) -> dict[str, dict[str, Any]]:
 
 
 def _config_values(values: dict[str, Any]) -> dict[str, Any]:
-    return {key: values[key] for key in VALID_CONFIG_KEYS if values.get(key) not in (None, "")}
+    clean = {key: values[key] for key in VALID_CONFIG_KEYS if values.get(key) not in (None, "")}
+    if "default_output" in clean:
+        clean["default_output"] = _validate_output_mode(clean["default_output"])
+    return clean
 
 
 def _validate_profile_name(name: str) -> str:
@@ -248,6 +253,14 @@ def _validate_profile_name(name: str) -> str:
             "Profile names can contain only letters, numbers, dots, underscores, and hyphens."
         )
     return name
+
+
+def _validate_output_mode(value: Any) -> str:
+    mode = str(value or "json")
+    if mode not in VALID_OUTPUT_MODES:
+        choices = ", ".join(sorted(VALID_OUTPUT_MODES))
+        raise ValueError(f"default_output must be one of: {choices}")
+    return mode
 
 
 def redact_secret(value: str) -> str:

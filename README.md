@@ -34,11 +34,14 @@ sets file permissions to `0600`. Config is profile-based, so you can keep
 multiple Harness accounts or projects handy:
 
 ```bash
-harness init --profile prod
+harness init --profile prod --output table
 harness init --profile sandbox
 harness profile use prod
 harness profile list
 ```
+
+Onboarding asks for host, API key, account, org, project, and default output
+mode. Use `--non-interactive` with flags when scripting setup.
 
 You can also use environment variables:
 
@@ -159,6 +162,7 @@ harness profile list
 harness profile use prod
 harness config list
 harness config set account acc_123
+harness config set default_output table
 harness api info
 harness api groups
 ```

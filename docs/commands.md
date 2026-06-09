@@ -19,9 +19,12 @@ harness completion zsh
 ```bash
 harness init
 harness init --host https://app.harness.io --account acc_123
-harness init --profile prod --account acc_123
+harness init --profile prod --account acc_123 --output table
 harness init --non-interactive --api-key "$HARNESS_API_KEY"
 ```
+
+Interactive setup prompts for host, API key, account, org, project, and default
+output mode. `--output` and `default_output` accept `json`, `raw`, or `table`.
 
 ## Profiles
 

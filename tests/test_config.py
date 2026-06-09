@@ -106,6 +106,13 @@ class ConfigTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "profiles"):
                 list_profiles(config_path)
 
+    def test_invalid_default_output_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "config.json"
+
+            with self.assertRaisesRegex(ValueError, "default_output"):
+                set_config_value("default_output", "xml", config_path)
+
 
 if __name__ == "__main__":
     unittest.main()

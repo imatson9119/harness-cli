@@ -11,6 +11,7 @@ from typing import Any
 from . import __version__
 from .config import (
     VALID_CONFIG_KEYS,
+    VALID_OUTPUT_MODES,
     HarnessConfig,
     current_profile_name,
     default_config_path,
@@ -34,7 +35,7 @@ from .http import (
     send_request,
 )
 from .manifest import HTTP_METHODS, Manifest, Operation, load_manifest
-from .render import CallStatus, print_error, print_json, print_table
+from .render import CallStatus, glyph, print_error, print_json, print_table, stylize
 
 BUILTIN_COMMANDS = {"init", "config", "auth", "doctor", "api", "profile", "completion", "version"}
 PAIR_FLAGS = {"--path", "--query", "--header", "--param"}
@@ -157,7 +158,7 @@ def command_init(argv: list[str]) -> int:
     parser.add_argument(
         "--output",
         default=None,
-        choices=["json", "raw", "table"],
+        choices=sorted(VALID_OUTPUT_MODES),
         help="Default output mode.",
     )
     parser.add_argument("--non-interactive", action="store_true", help="Do not prompt.")
@@ -165,7 +166,8 @@ def command_init(argv: list[str]) -> int:
     parsed = parser.parse_args(argv)
 
     path = default_config_path()
-    existing = {} if parsed.overwrite else read_config_file(path, profile=parsed.profile)
+    profile = current_profile_name(path, explicit=parsed.profile)
+    existing = {} if parsed.overwrite else read_config_file(path, profile=profile)
 
     values: dict[str, Any] = dict(existing)
     values["host"] = parsed.host or values.get("host") or "https://app.harness.io"
@@ -176,7 +178,7 @@ def command_init(argv: list[str]) -> int:
     values["default_output"] = parsed.output or values.get("default_output") or "json"
 
     if not parsed.non_interactive:
-        print("Harness CLI onboarding")
+        _print_init_intro(path, profile)
         values["host"] = _prompt("Host", str(values["host"])) or values["host"]
         values["api_key"] = (
             _prompt("API key", str(values["api_key"] or ""), secret=True) or values["api_key"]
@@ -188,13 +190,17 @@ def command_init(argv: list[str]) -> int:
         values["project"] = _prompt("Default project", values.get("project") or "") or values.get(
             "project"
         )
+        values["default_output"] = _prompt_choice(
+            "Default output",
+            sorted(VALID_OUTPUT_MODES),
+            str(values["default_output"]),
+        )
 
     if not values.get("api_key"):
         print("No API key saved. Set HARNESS_API_KEY or run `harness config set api_key ...`.")
 
-    written = write_config_file(values, path, profile=parsed.profile)
-    print(f"Wrote {written}")
-    print("Run `harness doctor` to check the setup.")
+    written = write_config_file(values, path, profile=profile)
+    _print_init_summary(written, profile, values)
     return 0
 
 
@@ -1187,6 +1193,53 @@ def _one_line(value: str, limit: int) -> str:
     if len(text) <= limit:
         return text
     return text[: limit - 3] + "..."
+
+
+def _print_init_intro(path: Any, profile: str) -> None:
+    print(stylize("Harness CLI onboarding", "bold"))
+    print("Let's set up a local profile for fast, tidy Harness API calls.")
+    print(f"Config: {path}")
+    print(f"Profile: {profile}")
+    print()
+
+
+def _print_init_summary(path: Any, profile: str, values: dict[str, Any]) -> None:
+    print()
+    print(
+        f"{stylize(glyph('ok', stream=sys.stdout), 'green')} "
+        f"Profile {stylize(profile, 'bold')} is ready"
+    )
+    print_table(
+        ["setting", "value"],
+        [
+            ["config", path],
+            ["host", values.get("host") or "https://app.harness.io"],
+            ["api_key", "configured" if values.get("api_key") else "missing"],
+            ["account", values.get("account") or ""],
+            ["org", values.get("org") or ""],
+            ["project", values.get("project") or ""],
+            ["default_output", values.get("default_output") or "json"],
+        ],
+    )
+    print()
+    print("Next steps:")
+    print("  harness doctor")
+    print("  harness api list --search pipeline")
+    print("  harness account-roles list-roles-acc --dry-run")
+
+
+def _prompt_choice(label: str, choices: list[str], default: str) -> str:
+    selected_default = default if default in choices else choices[0]
+    if not sys.stdin.isatty():
+        return selected_default
+    choice_text = "/".join(choices)
+    while True:
+        value = input(f"{label} [{selected_default}] ({choice_text}): ").strip().lower()
+        if not value:
+            return selected_default
+        if value in choices:
+            return value
+        print(f"Expected one of: {', '.join(choices)}")
 
 
 def _prompt(label: str, default: str, *, secret: bool = False) -> str:
