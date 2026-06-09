@@ -27,6 +27,10 @@ in the pull request.
 
 ## Pull Requests
 
+Use the pull request template and include the command output that proves the
+changed CLI behavior. For request-building changes, `harness ... --dry-run`
+output is usually the most useful evidence.
+
 Before opening a PR:
 
 ```bash
