@@ -28,7 +28,8 @@ harness init --non-interactive --api-key "$HARNESS_API_KEY"
 ```
 
 Interactive setup prompts for host, API key, account, org, project, and default
-output mode. `--output` and `default_output` accept `json`, `raw`, or `table`.
+output mode. Host values must be full `http://` or `https://` URLs. `--output`
+and `default_output` accept `json`, `raw`, or `table`.
 Global `--profile NAME` and `--config PATH` select command context for a single
 invocation without mutating the active profile or requiring exported
 environment variables.
@@ -77,6 +78,9 @@ Supported config keys:
 - `org`
 - `project`
 - `default_output`
+
+`host` must be a full `http://` or `https://` URL, such as
+`https://app.harness.io`.
 
 ## API Discovery
 

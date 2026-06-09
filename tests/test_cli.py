@@ -103,6 +103,23 @@ class CliTests(unittest.TestCase):
             self.assertEqual(status, 0)
             self.assertEqual(os.environ["HARNESS_PROFILE"], "prod")
 
+    def test_config_set_rejects_invalid_host_url(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "config.json"
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+
+            with (
+                patch.dict(os.environ, {"HARNESS_CONFIG": str(config_path)}, clear=True),
+                redirect_stdout(stdout),
+                contextlib.redirect_stderr(stderr),
+            ):
+                status = main(["config", "set", "host", "app.harness.io"])
+
+        self.assertEqual(status, 2)
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertIn("host must be an http(s) URL", stderr.getvalue())
+
     def test_api_body_prints_request_template(self) -> None:
         stdout = io.StringIO()
 

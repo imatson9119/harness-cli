@@ -41,7 +41,8 @@ harness profile list
 ```
 
 Onboarding asks for host, API key, account, org, project, and default output
-mode. Use `--non-interactive` with flags when scripting setup.
+mode. Host values must be full `http://` or `https://` URLs. Use
+`--non-interactive` with flags when scripting setup.
 
 Use global options when you want one command to use a different profile or
 config file without changing your active setup:

@@ -60,6 +60,30 @@ class ConfigTests(unittest.TestCase):
             self.assertEqual(config.host, "https://app.harness.io")
             self.assertEqual(config.account, "stage-account")
 
+    def test_host_is_normalized_when_written_and_loaded(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "config.json"
+
+            set_config_value("host", "https://example.harness.io/", config_path)
+
+            data = json.loads(config_path.read_text(encoding="utf-8"))
+            self.assertEqual(data["profiles"]["default"]["host"], "https://example.harness.io")
+            self.assertEqual(load_config(config_path).host, "https://example.harness.io")
+
+    def test_invalid_host_is_rejected_when_written(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "config.json"
+
+            with self.assertRaisesRegex(ValueError, "host must be an http"):
+                set_config_value("host", "app.harness.io", config_path)
+
+    def test_invalid_host_environment_is_rejected(self) -> None:
+        with (
+            patch.dict(os.environ, {"HARNESS_HOST": "app.harness.io"}, clear=True),
+            self.assertRaisesRegex(ValueError, "host must be an http"),
+        ):
+            load_config()
+
     def test_harness_profile_environment_selects_profile(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             config_path = Path(temp_dir) / "config.json"

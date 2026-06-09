@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import urllib.parse
 from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
@@ -74,7 +75,7 @@ def load_config(path: Path | None = None) -> HarnessConfig:
     }
     default_output = _validate_output_mode(merged["default_output"])
     return HarnessConfig(
-        host=str(merged["host"]).rstrip("/"),
+        host=_validate_host_url(merged["host"]),
         api_key=_optional_string(merged["api_key"]),
         account=_optional_string(merged["account"]),
         org=_optional_string(merged["org"]),
@@ -242,6 +243,8 @@ def _profiles_from_document(raw: dict[str, Any]) -> dict[str, dict[str, Any]]:
 
 def _config_values(values: dict[str, Any]) -> dict[str, Any]:
     clean = {key: values[key] for key in VALID_CONFIG_KEYS if values.get(key) not in (None, "")}
+    if "host" in clean:
+        clean["host"] = _validate_host_url(clean["host"])
     if "default_output" in clean:
         clean["default_output"] = _validate_output_mode(clean["default_output"])
     return clean
@@ -261,6 +264,14 @@ def _validate_output_mode(value: Any) -> str:
         choices = ", ".join(sorted(VALID_OUTPUT_MODES))
         raise ValueError(f"default_output must be one of: {choices}")
     return mode
+
+
+def _validate_host_url(value: Any) -> str:
+    host = str(value or "https://app.harness.io").strip().rstrip("/")
+    parsed = urllib.parse.urlsplit(host)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise ValueError("host must be an http(s) URL, for example https://app.harness.io")
+    return host
 
 
 def redact_secret(value: str) -> str:
