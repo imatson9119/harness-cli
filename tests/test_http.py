@@ -66,6 +66,27 @@ class HttpTests(unittest.TestCase):
                 ),
             )
 
+    def test_prepare_request_maps_account_to_harness_account_header(self) -> None:
+        manifest = load_manifest()
+        operation = manifest.by_operation_id["uploadSignature"]
+        config = HarnessConfig(api_key="harness-secret-token", account="acc")
+
+        request = prepare_request(
+            operation,
+            config,
+            CallOptions(
+                path_values={},
+                query_values={},
+                header_values={},
+                param_values={"org": "org", "project": "proj"},
+                body=None,
+                content_type=None,
+                dry_run=True,
+            ),
+        )
+
+        self.assertEqual(request.headers["Harness-Account"], "acc")
+
     def test_prepare_request_builds_multipart_file_body(self) -> None:
         manifest = load_manifest()
         operation = manifest.by_operation_id["uploadSignature"]

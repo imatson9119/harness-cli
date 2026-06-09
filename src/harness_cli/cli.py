@@ -26,6 +26,7 @@ from .config import (
 )
 from .http import (
     CallOptions,
+    pagination_help,
     prepare_request,
     render_dry_run,
     render_response,
@@ -760,11 +761,26 @@ def print_operation_help(operation: Operation) -> None:
         for parameter in operation.parameters:
             required = "required" if parameter.required else "optional"
             flag = f"--{_flag_name(parameter.name)}"
-            print(f"  {flag} ({parameter.location}, {required})")
+            details = [parameter.location, required]
+            if parameter.default is not None:
+                details.append(f"default: {parameter.default}")
+            if parameter.enum:
+                details.append("one of: " + ", ".join(str(value) for value in parameter.enum[:8]))
+            print(f"  {flag} ({'; '.join(details)})")
     if operation.request_body:
         required = "required" if operation.request_body.required else "optional"
         print()
         print(f"Body: {required}; content types: {', '.join(operation.request_body.content_types)}")
+    pagination = pagination_help(operation)
+    if pagination:
+        print()
+        print(f"Pagination: {pagination}")
+    examples = operation_examples(operation)
+    if examples:
+        print()
+        print("Examples:")
+        for example in examples:
+            print(f"  {example}")
     print()
     print(
         "Generic flags: --path, --query, --header, --param, --body, --form, --file, "
@@ -784,13 +800,15 @@ def print_operation_detail(operation: Operation) -> None:
     if operation.parameters:
         print()
         print_table(
-            ["name", "in", "required", "type", "description"],
+            ["name", "in", "required", "type", "default", "enum", "description"],
             [
                 [
                     parameter.name,
                     parameter.location,
                     "yes" if parameter.required else "no",
                     parameter.schema_type or "",
+                    "" if parameter.default is None else str(parameter.default),
+                    ", ".join(str(value) for value in parameter.enum[:8]),
                     _one_line(parameter.description, 80),
                 ]
                 for parameter in operation.parameters
@@ -803,6 +821,82 @@ def print_operation_detail(operation: Operation) -> None:
             + ("required" if operation.request_body.required else "optional")
             + f" ({', '.join(operation.request_body.content_types)})"
         )
+    pagination = pagination_help(operation)
+    if pagination:
+        print()
+        print(f"Pagination: {pagination}")
+    examples = operation_examples(operation)
+    if examples:
+        print()
+        print("Examples:")
+        for example in examples:
+            print(f"  {example}")
+
+
+def operation_examples(operation: Operation) -> list[str]:
+    required_flags = _example_required_flags(operation)
+    examples = [
+        f"harness {operation.group} {operation.command}{required_flags}",
+        f"harness api call {operation.operation_id}{_example_required_pairs(operation)}",
+    ]
+    examples[0] += _example_body_flags(operation)
+    if pagination_help(operation):
+        examples.append(f"harness {operation.group} {operation.command} --all --output table")
+    examples.append(f"harness {operation.group} {operation.command}{required_flags} --dry-run")
+    return examples
+
+
+def _example_required_flags(operation: Operation) -> str:
+    parts = []
+    for parameter in operation.parameters:
+        if not parameter.required or parameter.location not in {"path", "query", "header"}:
+            continue
+        if parameter.name == "Harness-Account":
+            parts.append("--account ACCOUNT")
+        else:
+            parts.append(f"--{_flag_name(parameter.name)} {_placeholder(parameter.name)}")
+    return f" {' '.join(parts)}" if parts else ""
+
+
+def _example_required_pairs(operation: Operation) -> str:
+    parts = []
+    for parameter in operation.parameters:
+        if not parameter.required or parameter.location not in {"path", "query", "header"}:
+            continue
+        value = _placeholder(parameter.name)
+        if parameter.location == "path":
+            parts.append(f"--path {parameter.name}={value}")
+        elif parameter.location == "query":
+            parts.append(f"--query {parameter.name}={value}")
+        else:
+            parts.append(f"--header {parameter.name}={value}")
+    return f" {' '.join(parts)}" if parts else ""
+
+
+def _example_body_flags(operation: Operation) -> str:
+    if not operation.request_body:
+        return ""
+    content_types = set(operation.request_body.content_types)
+    if "multipart/form-data" in content_types:
+        return " --form field=value --file file=@path"
+    if "application/x-www-form-urlencoded" in content_types:
+        return " --form field=value --content-type application/x-www-form-urlencoded"
+    return " --body @body.json"
+
+
+def _placeholder(name: str) -> str:
+    if name == "Harness-Account":
+        return "ACCOUNT"
+    normalized = _flag_name(name).replace("-", "_").upper()
+    if "ACCOUNT" in normalized:
+        return "ACCOUNT"
+    if normalized in {"ORG", "ORGANIZATION", "ORG_IDENTIFIER"}:
+        return "ORG"
+    if "PROJECT" in normalized:
+        return "PROJECT"
+    if "IDENTIFIER" in normalized:
+        return "IDENTIFIER"
+    return normalized or "VALUE"
 
 
 def operation_to_dict(operation: Operation) -> dict[str, Any]:

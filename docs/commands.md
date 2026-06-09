@@ -61,6 +61,9 @@ harness api list --method post --search execute
 harness api describe execute-a-pipeline
 ```
 
+`harness api describe` prints docs links, defaults, enums, pagination support,
+and pasteable examples for the generated shortcut and stable `api call` form.
+
 ## API Calls
 
 ```bash
@@ -101,6 +104,9 @@ endpoint expects URL-encoded form data instead.
 parameters such as `page`/`limit`, `pageIndex`/`pageSize`,
 `offset`/`limit`, or cursor-style `pageToken`/`cursor`. It stops at
 `--max-pages` as a safety guard.
+
+`--account` and the active profile account are also used for endpoints that
+expect the `Harness-Account` header.
 
 ## Shell Completion
 

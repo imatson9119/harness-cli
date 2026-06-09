@@ -152,6 +152,29 @@ class CliTests(unittest.TestCase):
         self.assertEqual(status, 0)
         self.assertIn("--limit\n", stdout.getvalue())
 
+    def test_api_describe_prints_examples_and_pagination_hint(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(["api", "describe", "list-roles-acc"])
+
+        output = stdout.getvalue()
+        self.assertEqual(status, 0)
+        self.assertIn("Pagination: Supports --all", output)
+        self.assertIn("Examples:", output)
+        self.assertIn("harness account-roles list-roles-acc --all --output table", output)
+
+    def test_operation_help_prints_required_account_alias(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(["artifact-signing", "upload-signature", "--help"])
+
+        output = stdout.getvalue()
+        self.assertEqual(status, 0)
+        self.assertIn("--account ACCOUNT", output)
+        self.assertIn("--file file=@path", output)
+
     def test_profile_commands_manage_config_profiles(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             config_path = Path(temp_dir) / "config.json"

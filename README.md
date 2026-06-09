@@ -51,7 +51,9 @@ export HARNESS_ORG=optional-org-id
 export HARNESS_PROJECT=optional-project-id
 ```
 
-Harness authenticates API calls with the `x-api-key` header.
+Harness authenticates API calls with the `x-api-key` header. When an endpoint
+requires the Harness account header, `--account` or the active profile account
+is sent as `Harness-Account`.
 
 ## Endpoint Commands
 
@@ -67,6 +69,9 @@ Describe an operation:
 ```bash
 harness api describe list-roles-acc
 ```
+
+Descriptions include parameter defaults, enum hints, docs links, pagination
+support, and pasteable examples.
 
 Call an operation through the stable API dispatcher:
 

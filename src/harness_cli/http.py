@@ -127,7 +127,7 @@ def send_paginated_request(
     *,
     timeout: float,
 ) -> Response:
-    plan = _pagination_plan(operation)
+    plan = pagination_plan(operation)
     if not plan:
         raise ValueError(
             "--all requires query pagination parameters like page/limit, "
@@ -244,6 +244,8 @@ def _merge_parameter_values(
             values[key] = value
     values.update(options.param_values)
     values.update(options.path_values)
+    if "account" in values and "Harness-Account" not in values:
+        values["Harness-Account"] = values["account"]
     return values
 
 
@@ -291,7 +293,7 @@ def _parameters_in(operation: Operation, location: str) -> list[Parameter]:
     return [parameter for parameter in operation.parameters if parameter.location == location]
 
 
-def _pagination_plan(operation: Operation) -> PaginationPlan | None:
+def pagination_plan(operation: Operation) -> PaginationPlan | None:
     query_params = {parameter.name: parameter for parameter in _parameters_in(operation, "query")}
     if "pageToken" in query_params:
         return PaginationPlan(
@@ -331,6 +333,19 @@ def _pagination_plan(operation: Operation) -> PaginationPlan | None:
             _int_value(query_params["offset"].default, 0),
         )
     return None
+
+
+def pagination_help(operation: Operation) -> str | None:
+    plan = pagination_plan(operation)
+    if not plan:
+        return None
+    if plan.kind == "cursor":
+        cursor = plan.cursor_param or "cursor"
+        size = f" and --all-page-size for {plan.size_param}" if plan.size_param else ""
+        return f"Supports --all using {cursor} cursor pagination{size}."
+    if plan.kind == "offset":
+        return f"Supports --all using {plan.page_param}/{plan.size_param} pagination."
+    return f"Supports --all using {plan.page_param}/{plan.size_param} pagination."
 
 
 def _paginated_query_values(
