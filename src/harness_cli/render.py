@@ -68,9 +68,16 @@ def print_table(headers: Sequence[str], rows: Sequence[Sequence[Any]]) -> None:
         print(_format_row(row, widths))
 
 
-def print_data_table(data: Any) -> None:
+def print_data_table(data: Any, *, columns: Sequence[str] | None = None) -> None:
     records = _records_from_data(data)
     if isinstance(records, dict):
+        if columns:
+            selected = list(columns)
+            print_table(
+                selected,
+                [[_cell_value(_record_value(records, column)) for column in selected]],
+            )
+            return
         print_table(["key", "value"], [[key, _cell_value(value)] for key, value in records.items()])
         return
     if not records:
@@ -78,10 +85,13 @@ def print_data_table(data: Any) -> None:
         return
     if all(isinstance(item, dict) for item in records):
         dict_records = [item for item in records if isinstance(item, dict)]
-        columns = _table_columns(dict_records)
+        selected_columns = list(columns) if columns else _table_columns(dict_records)
         print_table(
-            columns,
-            [[_cell_value(record.get(column)) for column in columns] for record in dict_records],
+            selected_columns,
+            [
+                [_cell_value(_record_value(record, column)) for column in selected_columns]
+                for record in dict_records
+            ],
         )
         return
     print_table(["value"], [[_cell_value(value)] for value in records])
@@ -279,6 +289,17 @@ def _table_columns(records: Sequence[dict[str, Any]]) -> list[str]:
     preferred = [key for key in PREFERRED_TABLE_COLUMNS if key in seen]
     rest = [key for key in ordered if key not in preferred]
     return [*preferred, *rest][:8] or ["value"]
+
+
+def _record_value(record: dict[str, Any], column: str) -> Any:
+    if column in record:
+        return record[column]
+    current: Any = record
+    for part in column.split("."):
+        if not isinstance(current, dict) or part not in current:
+            return None
+        current = current[part]
+    return current
 
 
 def _cell_value(value: Any) -> str:

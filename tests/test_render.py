@@ -59,6 +59,38 @@ class RenderTests(unittest.TestCase):
         self.assertIn("one", output)
         self.assertIn("Second", output)
 
+    def test_print_data_table_uses_requested_columns_and_nested_values(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            print_data_table(
+                {
+                    "data": [
+                        {
+                            "identifier": "one",
+                            "name": "First",
+                            "metadata": {"status": "active"},
+                            "ignored": "noise",
+                        },
+                        {
+                            "identifier": "two",
+                            "name": "Second",
+                            "metadata": {"status": "paused"},
+                            "ignored": "more-noise",
+                        },
+                    ]
+                },
+                columns=["identifier", "metadata.status"],
+            )
+
+        output = stdout.getvalue()
+        self.assertIn("identifier", output)
+        self.assertIn("metadata.status", output)
+        self.assertIn("active", output)
+        self.assertIn("paused", output)
+        self.assertNotIn("ignored", output)
+        self.assertNotIn("noise", output)
+
     def test_print_data_table_renders_objects_as_key_value_rows(self) -> None:
         stdout = io.StringIO()
 

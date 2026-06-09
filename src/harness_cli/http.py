@@ -49,6 +49,7 @@ class CallOptions:
     no_auth: bool = False
     output: str = "json"
     output_file: str | None = None
+    table_columns: tuple[str, ...] = ()
     all_pages: bool = False
     all_page_size: int | None = None
     max_pages: int = 100
@@ -204,6 +205,7 @@ def render_response(
     include: bool,
     output: str,
     output_file: str | None = None,
+    table_columns: tuple[str, ...] = (),
 ) -> None:
     if include:
         print(format_http_status(response.status))
@@ -228,7 +230,7 @@ def render_response(
             sys.stdout.write("\n")
         return
     if output == "table":
-        print_data_table(parsed)
+        print_data_table(parsed, columns=table_columns)
         return
     print_json(parsed)
 

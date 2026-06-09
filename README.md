@@ -113,6 +113,7 @@ Render JSON list responses as a table when you want a compact human view:
 
 ```bash
 harness account-roles list-roles-acc --limit 10 --output table
+harness account-roles list-roles-acc --limit 10 --output table --columns identifier,name,createdAt
 ```
 
 Fetch paginated list endpoints until they are exhausted:

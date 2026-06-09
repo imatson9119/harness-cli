@@ -58,6 +58,7 @@ GENERIC_CALL_FLAGS = (
     "--form",
     "--file",
     "--content-type",
+    "--columns",
     "--output",
     "--output-file",
     "--all",
@@ -94,6 +95,7 @@ CALL_VALUE_FLAGS = {
     "--body-file",
     "--body-json",
     "--content-type",
+    "--columns",
     "--file",
     "--form",
     "--host",
@@ -827,6 +829,7 @@ def call_operation(operation: Operation, argv: list[str]) -> int:
         include=options.include,
         output=options.output,
         output_file=options.output_file,
+        table_columns=options.table_columns,
     )
     return 0 if response.status < 400 else 1
 
@@ -847,6 +850,7 @@ def parse_call_options(operation: Operation, argv: list[str], config: HarnessCon
     no_auth = False
     output = config.default_output
     output_file: str | None = None
+    table_columns: list[str] = []
     all_pages = False
     all_page_size: int | None = None
     max_pages = 100
@@ -914,6 +918,9 @@ def parse_call_options(operation: Operation, argv: list[str], config: HarnessCon
             file_values.setdefault(key, []).append(parsed_value)
         elif token == "--content-type":
             content_type, index = _consume_value(argv, index)
+        elif token == "--columns":
+            value, index = _consume_value(argv, index)
+            table_columns.extend(_split_columns(value))
         elif token == "--output":
             output, index = _consume_value(argv, index)
             if output not in {"json", "raw", "table"}:
@@ -964,6 +971,8 @@ def parse_call_options(operation: Operation, argv: list[str], config: HarnessCon
 
     if not all_pages and (all_page_size is not None or max_pages != 100):
         raise ValueError("--all-page-size and --max-pages require --all")
+    if table_columns and output != "table":
+        raise ValueError("--columns requires --output table")
 
     return CallOptions(
         path_values=path_values,
@@ -981,6 +990,7 @@ def parse_call_options(operation: Operation, argv: list[str], config: HarnessCon
         no_auth=no_auth,
         output=output,
         output_file=output_file,
+        table_columns=tuple(table_columns),
         all_pages=all_pages,
         all_page_size=all_page_size,
         max_pages=max_pages,
@@ -1093,6 +1103,7 @@ def print_call_flags_help() -> None:
         "--form key=value",
         "--file field=@path",
         "--content-type value",
+        "--columns a,b,c",
         "--output json|raw|table",
         "--output-file path",
         "--all",
@@ -1543,6 +1554,13 @@ def _split_pair(value: str) -> tuple[str, str]:
     if not key:
         raise ValueError("Pair key cannot be empty")
     return key, parsed_value
+
+
+def _split_columns(value: str) -> list[str]:
+    columns = [item.strip() for item in value.split(",") if item.strip()]
+    if not columns:
+        raise ValueError("--columns requires at least one column name")
+    return columns
 
 
 def _flag_name(name: str) -> str:

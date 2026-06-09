@@ -180,6 +180,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("Pagination: Supports --all", output)
         self.assertIn("--output json|raw|table", output)
         self.assertIn("--api-key KEY", output)
+        self.assertIn("--columns a,b,c", output)
 
     def test_api_call_operation_help_works_after_flags(self) -> None:
         stdout = io.StringIO()
@@ -287,6 +288,26 @@ class CliTests(unittest.TestCase):
         self.assertEqual(status, 2)
         self.assertEqual(stdout.getvalue(), "")
         self.assertIn("--body-json received invalid JSON", stderr.getvalue())
+
+    def test_table_columns_parse_for_table_output(self) -> None:
+        manifest = load_manifest()
+        operation = manifest.by_operation_id["list-roles-acc"]
+
+        options = parse_call_options(
+            operation,
+            ["--output", "table", "--columns", "identifier,name", "--columns", "createdAt"],
+            HarnessConfig(),
+        )
+
+        self.assertEqual(options.output, "table")
+        self.assertEqual(options.table_columns, ("identifier", "name", "createdAt"))
+
+    def test_table_columns_require_table_output(self) -> None:
+        manifest = load_manifest()
+        operation = manifest.by_operation_id["list-roles-acc"]
+
+        with self.assertRaisesRegex(ValueError, "--columns requires --output table"):
+            parse_call_options(operation, ["--columns", "identifier,name"], HarnessConfig())
 
     def test_generated_call_can_print_curl_without_api_key(self) -> None:
         stdout = io.StringIO()

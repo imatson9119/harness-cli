@@ -118,6 +118,7 @@ harness api call list-roles-acc --query limit=10
 harness account-roles list-roles-acc --limit 10
 harness account-roles list-roles-acc --limit 10 --help
 harness account-roles list-roles-acc --limit 10 --output table
+harness account-roles list-roles-acc --limit 10 --output table --columns identifier,name,createdAt
 harness account-roles list-roles-acc --all --all-page-size 100 --output table
 harness account-roles list-roles-acc --limit 10 --curl
 harness account-roles get-role-acc --role my-role
@@ -139,6 +140,7 @@ Useful call flags:
 - `--form key=value`
 - `--file field=@path`
 - `--output-file path`
+- `--columns identifier,name,metadata.status`
 - `--all`
 - `--all-page-size 100`
 - `--max-pages 50`
@@ -150,6 +152,9 @@ Useful call flags:
 Add `--help` anywhere after an operation name to print that operation's
 parameters, examples, body-template hint, pagination support, and generic call
 flags without sending a request.
+
+Use `--columns` with `--output table` to choose table columns in order. Dotted
+names such as `metadata.status` read nested object fields.
 
 `--body-json` accepts inline JSON, `@file`, or `-` stdin, validates the payload
 before sending it, and defaults the content type to `application/json`.

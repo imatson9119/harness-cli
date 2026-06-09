@@ -271,6 +271,32 @@ class HttpTests(unittest.TestCase):
         self.assertIn("identifier", output)
         self.assertIn("Service", output)
 
+    def test_render_response_can_print_selected_table_columns(self) -> None:
+        stdout = io.StringIO()
+
+        with contextlib.redirect_stdout(stdout):
+            render_response(
+                Response(
+                    status=200,
+                    headers={},
+                    body=(
+                        b'{"data":[{"identifier":"svc","name":"Service",'
+                        b'"metadata":{"status":"ok"},"ignored":"noise"}]}'
+                    ),
+                ),
+                include=False,
+                output="table",
+                table_columns=("identifier", "metadata.status"),
+            )
+
+        output = stdout.getvalue()
+        self.assertIn("identifier", output)
+        self.assertIn("metadata.status", output)
+        self.assertIn("svc", output)
+        self.assertIn("ok", output)
+        self.assertNotIn("ignored", output)
+        self.assertNotIn("noise", output)
+
     def test_render_curl_redacts_api_key_and_includes_body(self) -> None:
         stdout = io.StringIO()
 
