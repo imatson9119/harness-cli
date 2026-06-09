@@ -311,6 +311,30 @@ class HttpTests(unittest.TestCase):
         self.assertIn(b'filename="signature.txt"', body)
         self.assertIn(b"signed", body)
 
+    def test_prepare_request_rejects_missing_upload_file_cleanly(self) -> None:
+        manifest = load_manifest()
+        operation = manifest.by_operation_id["uploadSignature"]
+        config = HarnessConfig(api_key="harness-secret-token")
+
+        with (
+            tempfile.TemporaryDirectory() as temp_dir,
+            self.assertRaisesRegex(ValueError, "Could not read upload file"),
+        ):
+            prepare_request(
+                operation,
+                config,
+                CallOptions(
+                    path_values={},
+                    query_values={},
+                    header_values={},
+                    param_values={"org": "org", "project": "proj"},
+                    body=None,
+                    content_type=None,
+                    file_values={"signature": [str(Path(temp_dir) / "missing.sig")]},
+                    dry_run=True,
+                ),
+            )
+
     def test_prepare_request_rejects_body_mixed_with_form_fields(self) -> None:
         manifest = load_manifest()
         operation = manifest.by_operation_id["create-role-acc"]
@@ -380,6 +404,29 @@ class HttpTests(unittest.TestCase):
             )
 
         self.assertEqual(request.body, b'{"identifier":"demo"}')
+
+    def test_prepare_request_rejects_missing_body_file_cleanly(self) -> None:
+        manifest = load_manifest()
+        operation = manifest.by_operation_id["create-role-acc"]
+        config = HarnessConfig(api_key="harness-secret-token")
+
+        with (
+            tempfile.TemporaryDirectory() as temp_dir,
+            self.assertRaisesRegex(ValueError, "Could not read body file"),
+        ):
+            prepare_request(
+                operation,
+                config,
+                CallOptions(
+                    path_values={},
+                    query_values={},
+                    header_values={},
+                    param_values={},
+                    body=f"@{Path(temp_dir) / 'missing.json'}",
+                    content_type=None,
+                    dry_run=True,
+                ),
+            )
 
     def test_prepare_request_rejects_invalid_body_json(self) -> None:
         manifest = load_manifest()

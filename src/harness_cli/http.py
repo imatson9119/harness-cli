@@ -611,7 +611,7 @@ def _body_bytes(body: str | None) -> bytes | None:
     if body == "-":
         return sys.stdin.buffer.read()
     if body.startswith("@"):
-        return Path(body[1:]).read_bytes()
+        return _read_input_file(Path(body[1:]), "body file")
     return body.encode("utf-8")
 
 
@@ -645,6 +645,7 @@ def _multipart_body(
         for value in paths:
             file_path = Path(value[1:] if value.startswith("@") else value)
             content_type = mimetypes.guess_type(file_path.name)[0] or "application/octet-stream"
+            file_bytes = _read_input_file(file_path, "upload file")
             chunks.extend(
                 [
                     f"--{boundary}\r\n".encode(),
@@ -655,12 +656,20 @@ def _multipart_body(
                     ).encode(),
                     f"Content-Type: {content_type}\r\n".encode(),
                     b"\r\n",
-                    file_path.read_bytes(),
+                    file_bytes,
                     b"\r\n",
                 ]
             )
     chunks.append(f"--{boundary}--\r\n".encode())
     return b"".join(chunks), boundary
+
+
+def _read_input_file(path: Path, label: str) -> bytes:
+    try:
+        return path.read_bytes()
+    except OSError as exc:
+        detail = exc.strerror or str(exc)
+        raise ValueError(f"Could not read {label} {path}: {detail}") from exc
 
 
 def _write_output_file(output_file: str, body: bytes) -> None:

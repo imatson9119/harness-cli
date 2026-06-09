@@ -552,6 +552,57 @@ class CliTests(unittest.TestCase):
         self.assertIn("permissions:\n", output)
         self.assertIn("- permission: string", output)
 
+    def test_generated_call_rejects_missing_body_file_cleanly(self) -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+
+        with (
+            tempfile.TemporaryDirectory() as temp_dir,
+            redirect_stdout(stdout),
+            contextlib.redirect_stderr(stderr),
+        ):
+            status = main(
+                [
+                    "api",
+                    "call",
+                    "create-role-acc",
+                    "--body",
+                    f"@{Path(temp_dir) / 'missing.json'}",
+                    "--dry-run",
+                ]
+            )
+
+        self.assertEqual(status, 2)
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertIn("Could not read body file", stderr.getvalue())
+
+    def test_generated_call_rejects_missing_upload_file_cleanly(self) -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+
+        with (
+            tempfile.TemporaryDirectory() as temp_dir,
+            redirect_stdout(stdout),
+            contextlib.redirect_stderr(stderr),
+        ):
+            status = main(
+                [
+                    "artifact-signing",
+                    "upload-signature",
+                    "--org",
+                    "org",
+                    "--project",
+                    "proj",
+                    "--file",
+                    f"signature=@{Path(temp_dir) / 'missing.sig'}",
+                    "--dry-run",
+                ]
+            )
+
+        self.assertEqual(status, 2)
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertIn("Could not read upload file", stderr.getvalue())
+
     def test_table_columns_parse_for_table_output(self) -> None:
         manifest = load_manifest()
         operation = manifest.by_operation_id["list-roles-acc"]
