@@ -21,11 +21,41 @@ from .config import (
     write_config_file,
 )
 from .http import CallOptions, prepare_request, render_dry_run, render_response, send_request
-from .manifest import Manifest, Operation, load_manifest
+from .manifest import HTTP_METHODS, Manifest, Operation, load_manifest
 from .render import print_error, print_json, print_table
 
-BUILTIN_COMMANDS = {"init", "config", "auth", "doctor", "api", "version"}
+BUILTIN_COMMANDS = {"init", "config", "auth", "doctor", "api", "completion", "version"}
 PAIR_FLAGS = {"--path", "--query", "--header", "--param"}
+GENERIC_CALL_FLAGS = (
+    "--path",
+    "--query",
+    "--header",
+    "--param",
+    "--body",
+    "--body-json",
+    "--body-file",
+    "--form",
+    "--file",
+    "--content-type",
+    "--output",
+    "--output-file",
+    "--timeout",
+    "--host",
+    "--api-key",
+    "--dry-run",
+    "--include",
+    "--no-auth",
+    "--help",
+)
+COMMON_PARAMETER_FLAGS = (
+    "--account",
+    "--account-identifier",
+    "--account-id",
+    "--org",
+    "--org-identifier",
+    "--project",
+    "--project-identifier",
+)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -49,6 +79,10 @@ def main(argv: list[str] | None = None) -> int:
             return command_doctor(args[1:])
         if command == "api":
             return command_api(args[1:])
+        if command == "completion":
+            return command_completion(args[1:])
+        if command == "__complete":
+            return command_internal_complete(args[1:])
 
         manifest = load_manifest()
         return command_generated(manifest, args)
@@ -72,6 +106,7 @@ Usage:
   harness api describe OPERATION
   harness api call OPERATION [flags]
   harness <group> <operation> [flags]
+  harness completion SHELL
 
 Built-in commands:
   init        Run onboarding and write local config
@@ -79,6 +114,7 @@ Built-in commands:
   auth        Show authentication status
   doctor      Check local setup and generated manifest
   api         Discover and call generated API operations
+  completion  Print shell completion scripts
   version     Print CLI version
 
 Examples:
@@ -247,6 +283,50 @@ def command_doctor(argv: list[str]) -> int:
         else:
             print("No local issues found.")
     return 0 if not issues else 1
+
+
+def command_completion(argv: list[str]) -> int:
+    if not argv or argv[0] in {"-h", "--help", "help"}:
+        print("Usage: harness completion bash|zsh|fish")
+        return 0
+    shell = argv[0]
+    scripts = {
+        "bash": _bash_completion_script,
+        "zsh": _zsh_completion_script,
+        "fish": _fish_completion_script,
+    }
+    script = scripts.get(shell)
+    if not script:
+        raise ValueError(f"Unknown shell: {shell}. Expected bash, zsh, or fish.")
+    print(script())
+    return 0
+
+
+def command_internal_complete(argv: list[str]) -> int:
+    current = ""
+    current_supplied = False
+    words: list[str] = []
+    index = 0
+    while index < len(argv):
+        token = argv[index]
+        if token == "--current":
+            current_supplied = True
+            current, index = _consume_value(argv, index)
+        elif token == "--":
+            words.extend(argv[index + 1 :])
+            break
+        else:
+            words.append(token)
+            index += 1
+
+    if not current_supplied and current == "" and words:
+        current = words[-1]
+        words = words[:-1]
+
+    manifest = load_manifest()
+    for candidate in completion_candidates(manifest, words, current):
+        print(candidate)
+    return 0
 
 
 def command_api(argv: list[str]) -> int:
@@ -625,6 +705,175 @@ def operation_to_dict(operation: Operation) -> dict[str, Any]:
         if operation.request_body
         else None,
     }
+
+
+def completion_candidates(manifest: Manifest, words: list[str], current: str) -> list[str]:
+    if words and words[-1] == "--output":
+        return _filter_candidates(["json", "raw"], current)
+    if words and words[-1] == "--method":
+        return _filter_candidates(sorted(HTTP_METHODS), current)
+
+    if not words:
+        return _filter_candidates(_top_level_completion_candidates(manifest), current)
+
+    command = words[0]
+    if command == "completion":
+        return _filter_candidates(["bash", "fish", "zsh"], current)
+    if command == "config":
+        return _config_completion_candidates(words[1:], current)
+    if command == "auth":
+        return _filter_candidates(["status"], current) if len(words) == 1 else []
+    if command == "doctor":
+        return _filter_candidates(["--json", "--help"], current)
+    if command == "init":
+        return _filter_candidates(
+            [
+                "--host",
+                "--api-key",
+                "--account",
+                "--org",
+                "--project",
+                "--output",
+                "--non-interactive",
+                "--overwrite",
+                "--help",
+            ],
+            current,
+        )
+    if command == "api":
+        return _api_completion_candidates(manifest, words[1:], current)
+    if command in manifest.groups:
+        return _generated_completion_candidates(manifest, command, words[1:], current)
+    return []
+
+
+def _api_completion_candidates(manifest: Manifest, words: list[str], current: str) -> list[str]:
+    if not words:
+        return _filter_candidates(["call", "describe", "groups", "list"], current)
+    action = words[0]
+    if action in {"call", "describe"}:
+        if len(words) == 1:
+            return _filter_candidates(_operation_completion_candidates(manifest), current)
+        operation = manifest.find_operation(words[1])
+        if action == "call" and operation:
+            return _operation_flag_completion_candidates(operation, current)
+        return []
+    if action == "groups":
+        return _filter_candidates(["--json", "--help"], current)
+    if action == "list":
+        return _filter_candidates(
+            ["--search", "--tag", "--method", "--limit", "--json", "--help"], current
+        )
+    return _filter_candidates(["call", "describe", "groups", "list"], current)
+
+
+def _config_completion_candidates(words: list[str], current: str) -> list[str]:
+    actions = ["get", "list", "set", "unset"]
+    if not words:
+        return _filter_candidates(actions, current)
+    action = words[0]
+    if action in {"get", "set", "unset"} and len(words) == 1:
+        return _filter_candidates(sorted(VALID_CONFIG_KEYS), current)
+    return []
+
+
+def _generated_completion_candidates(
+    manifest: Manifest,
+    group: str,
+    words: list[str],
+    current: str,
+) -> list[str]:
+    if not words:
+        operations = [operation.command for operation in manifest.group_operations(group)]
+        return _filter_candidates(operations, current)
+    operation = manifest.by_group_command.get((group, words[0]))
+    if not operation:
+        return []
+    return _operation_flag_completion_candidates(operation, current)
+
+
+def _operation_flag_completion_candidates(operation: Operation, current: str) -> list[str]:
+    parameter_flags = [f"--{_flag_name(parameter.name)}" for parameter in operation.parameters]
+    return _filter_candidates(
+        [*parameter_flags, *COMMON_PARAMETER_FLAGS, *GENERIC_CALL_FLAGS],
+        current,
+    )
+
+
+def _top_level_completion_candidates(manifest: Manifest) -> list[str]:
+    return [*sorted(BUILTIN_COMMANDS), *sorted(manifest.groups)]
+
+
+def _operation_completion_candidates(manifest: Manifest) -> list[str]:
+    candidates: list[str] = []
+    for operation in manifest.operations:
+        candidates.append(operation.operation_id)
+        candidates.append(f"{operation.group}/{operation.command}")
+        if len(manifest.by_command.get(operation.command, ())) == 1:
+            candidates.append(operation.command)
+    return candidates
+
+
+def _filter_candidates(candidates: list[str], current: str) -> list[str]:
+    unique: list[str] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        if candidate in seen:
+            continue
+        if current and not candidate.startswith(current):
+            continue
+        unique.append(candidate)
+        seen.add(candidate)
+    return unique
+
+
+def _bash_completion_script() -> str:
+    return r"""# bash completion for harness
+_harness_complete() {
+    local current
+    current="${COMP_WORDS[COMP_CWORD]}"
+    local -a words
+    words=("${COMP_WORDS[@]:1:COMP_CWORD-1}")
+    mapfile -t COMPREPLY < <(harness __complete --current "$current" -- "${words[@]}")
+}
+
+complete -F _harness_complete harness"""
+
+
+def _zsh_completion_script() -> str:
+    return """#compdef harness
+
+_harness() {
+    local current
+    current="${words[$CURRENT]}"
+    local -a prior completions
+    prior=("${words[@]:1:$((CURRENT - 2))}")
+    completions=("${(@f)$(harness __complete --current "$current" -- "${prior[@]}")}")
+    compadd -- "${completions[@]}"
+}
+
+_harness "$@"
+"""
+
+
+def _fish_completion_script() -> str:
+    return """function __harness_complete
+    set -l current (commandline -ct)
+    set -l tokens (commandline -opc)
+    if test (count $tokens) -gt 0
+        set -e tokens[1]
+    end
+    if test -n "$current"; and test (count $tokens) -gt 0
+        set -l last_index (count $tokens)
+        if test $tokens[$last_index] = "$current"
+            set -e tokens[$last_index]
+        end
+    end
+    harness __complete --current "$current" -- $tokens
+end
+
+complete -c harness -f -a "(__harness_complete)"
+"""
 
 
 def _consume_value(argv: list[str], index: int) -> tuple[str, int]:

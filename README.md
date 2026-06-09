@@ -97,6 +97,16 @@ Save binary responses:
 harness file-store download-file --identifier readme --output-file readme.md
 ```
 
+## Shell Completion
+
+Print completion scripts for supported shells:
+
+```bash
+harness completion bash
+harness completion zsh
+harness completion fish
+```
+
 ## Useful Commands
 
 ```bash

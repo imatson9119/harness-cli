@@ -52,6 +52,76 @@ class CliTests(unittest.TestCase):
         self.assertEqual(options.form_values["note"], ["release"])
         self.assertEqual(options.file_values["sig"], ["@sig.txt"])
 
+    def test_completion_script_prints_bash_function(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(["completion", "bash"])
+
+        self.assertEqual(status, 0)
+        output = stdout.getvalue()
+        self.assertIn("_harness_complete", output)
+        self.assertIn("complete -F _harness_complete harness", output)
+
+    def test_completion_scripts_keep_shell_quotes_balanced(self) -> None:
+        for shell, expected in [
+            ("zsh", '_harness "$@"'),
+            ("fish", 'complete -c harness -f -a "(__harness_complete)"'),
+        ]:
+            with self.subTest(shell=shell):
+                stdout = io.StringIO()
+
+                with redirect_stdout(stdout):
+                    status = main(["completion", shell])
+
+                self.assertEqual(status, 0)
+                self.assertIn(expected, stdout.getvalue())
+
+    def test_completion_lists_matching_top_level_groups(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(["__complete", "--current", "account-", "--"])
+
+        self.assertEqual(status, 0)
+        self.assertIn("account-roles\n", stdout.getvalue())
+
+    def test_completion_lists_group_operations(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(["__complete", "--current", "list", "--", "account-roles"])
+
+        self.assertEqual(status, 0)
+        self.assertIn("list-roles-acc\n", stdout.getvalue())
+
+    def test_completion_respects_explicit_empty_current_word(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(["__complete", "--current", "", "--", "account-roles"])
+
+        self.assertEqual(status, 0)
+        self.assertIn("list-roles-acc\n", stdout.getvalue())
+
+    def test_completion_lists_operation_flags(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(
+                [
+                    "__complete",
+                    "--current",
+                    "--lim",
+                    "--",
+                    "account-roles",
+                    "list-roles-acc",
+                ]
+            )
+
+        self.assertEqual(status, 0)
+        self.assertIn("--limit\n", stdout.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

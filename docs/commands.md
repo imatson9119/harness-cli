@@ -9,6 +9,7 @@ harness doctor
 harness auth status
 harness config list
 harness api list
+harness completion zsh
 ```
 
 ## Onboarding
@@ -76,3 +77,14 @@ Useful call flags:
 `--form` and `--file` build multipart request bodies by default. Use
 `--content-type application/x-www-form-urlencoded` with `--form` when an
 endpoint expects URL-encoded form data instead.
+
+## Shell Completion
+
+```bash
+harness completion bash
+harness completion zsh
+harness completion fish
+```
+
+Completion scripts call the CLI's generated manifest at completion time, so
+refreshed endpoint groups and operations are immediately reflected.

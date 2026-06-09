@@ -11,6 +11,9 @@ The CLI has three layers:
 The generated endpoint surface is intentionally metadata-driven. The project
 does not hand-code thousands of Harness endpoints; it keeps the command behavior
 generic and refreshes endpoint coverage from the official OpenAPI bundle.
+Shell completion follows the same pattern: completion scripts call back into the
+CLI so generated groups, operations, and parameter flags stay aligned with the
+manifest.
 
 ## Generated Commands
 
