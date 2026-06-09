@@ -94,6 +94,8 @@ The request builder:
 - Supports binary response downloads through `--output-file`.
 - Supports guarded pagination helpers for common list endpoint shapes.
 - Provides `--dry-run` so users can inspect requests before sending them.
+- Provides `--curl` so users can inspect or share a redacted cURL command
+  without sending the request.
 
 ## Error Handling
 

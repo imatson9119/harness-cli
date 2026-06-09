@@ -17,6 +17,7 @@ from harness_cli.http import (
     RequestError,
     Response,
     prepare_request,
+    render_curl,
     render_response,
     send_paginated_request,
     send_request,
@@ -178,6 +179,30 @@ class HttpTests(unittest.TestCase):
         output = stdout.getvalue()
         self.assertIn("identifier", output)
         self.assertIn("Service", output)
+
+    def test_render_curl_redacts_api_key_and_includes_body(self) -> None:
+        stdout = io.StringIO()
+
+        with contextlib.redirect_stdout(stdout):
+            render_curl(
+                PreparedRequest(
+                    "POST",
+                    "https://app.harness.io/v1/roles",
+                    {
+                        "Content-Type": "application/json",
+                        "x-api-key": "harness-secret-token",
+                    },
+                    b'{"name":"Demo"}',
+                )
+            )
+
+        output = stdout.getvalue()
+        self.assertIn("curl -X POST", output)
+        self.assertIn("https://app.harness.io/v1/roles", output)
+        self.assertIn("Content-Type: application/json", output)
+        self.assertIn("--data-raw", output)
+        self.assertNotIn("harness-secret-token", output)
+        self.assertIn("harn...oken", output)
 
     def test_send_request_converts_transport_errors(self) -> None:
         request = PreparedRequest("GET", "https://app.harness.io/v1/roles?limit=1", {}, None)

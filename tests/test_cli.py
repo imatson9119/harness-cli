@@ -201,12 +201,47 @@ class CliTests(unittest.TestCase):
         self.assertEqual(options.all_page_size, 100)
         self.assertEqual(options.max_pages, 3)
 
+    def test_generated_call_can_print_curl_without_api_key(self) -> None:
+        stdout = io.StringIO()
+
+        with patch.dict(os.environ, {}, clear=True), redirect_stdout(stdout):
+            status = main(["account-roles", "list-roles-acc", "--limit", "1", "--curl"])
+
+        output = stdout.getvalue()
+        self.assertEqual(status, 0)
+        self.assertIn("curl -X GET", output)
+        self.assertIn("https://app.harness.io/v1/roles?limit=1", output)
+
+    def test_generated_curl_preview_redacts_api_key(self) -> None:
+        stdout = io.StringIO()
+
+        with (
+            patch.dict(os.environ, {"HARNESS_API_KEY": "harness-secret-token"}, clear=True),
+            redirect_stdout(stdout),
+        ):
+            status = main(["account-roles", "list-roles-acc", "--limit", "1", "--curl"])
+
+        output = stdout.getvalue()
+        self.assertEqual(status, 0)
+        self.assertIn("x-api-key: harn...oken", output)
+        self.assertNotIn("harness-secret-token", output)
+
     def test_pagination_tuning_flags_require_all(self) -> None:
         manifest = load_manifest()
         operation = manifest.by_operation_id["list-roles-acc"]
 
         with self.assertRaisesRegex(ValueError, "require --all"):
             parse_call_options(operation, ["--max-pages", "3"], HarnessConfig())
+
+    def test_curl_preview_cannot_combine_with_all_pages(self) -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+
+        with redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            status = main(["account-roles", "list-roles-acc", "--all", "--curl"])
+
+        self.assertEqual(status, 2)
+        self.assertIn("--curl cannot be combined with --all", stderr.getvalue())
 
     def test_dynamic_call_parses_form_and_file_parameters(self) -> None:
         manifest = load_manifest()

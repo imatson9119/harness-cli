@@ -122,6 +122,7 @@ Preview the request without sending it:
 
 ```bash
 harness account-roles list-roles-acc --limit 10 --dry-run
+harness account-roles list-roles-acc --limit 10 --curl
 ```
 
 Send JSON request bodies from a file:

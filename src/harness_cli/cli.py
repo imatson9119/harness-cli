@@ -36,6 +36,7 @@ from .http import (
     RequestError,
     pagination_help,
     prepare_request,
+    render_curl,
     render_dry_run,
     render_response,
     send_paginated_request,
@@ -65,6 +66,7 @@ GENERIC_CALL_FLAGS = (
     "--timeout",
     "--host",
     "--api-key",
+    "--curl",
     "--dry-run",
     "--include",
     "--no-auth",
@@ -763,6 +765,11 @@ def call_operation(operation: Operation, argv: list[str]) -> int:
     config = load_config()
     options = parse_call_options(operation, argv, config)
     request = prepare_request(operation, config, options)
+    if options.curl:
+        if options.all_pages:
+            raise ValueError("--curl cannot be combined with --all")
+        render_curl(request)
+        return 0
     if options.dry_run:
         render_dry_run(request)
         return 0
@@ -796,6 +803,7 @@ def parse_call_options(operation: Operation, argv: list[str], config: HarnessCon
     body: str | None = None
     content_type: str | None = None
     include = False
+    curl = False
     dry_run = False
     no_auth = False
     output = config.default_output
@@ -826,6 +834,9 @@ def parse_call_options(operation: Operation, argv: list[str], config: HarnessCon
         token = argv[index]
         if token == "--dry-run":
             dry_run = True
+            index += 1
+        elif token == "--curl":
+            curl = True
             index += 1
         elif token == "--include":
             include = True
@@ -920,6 +931,7 @@ def parse_call_options(operation: Operation, argv: list[str], config: HarnessCon
         form_values=form_values,
         file_values=file_values,
         include=include,
+        curl=curl,
         dry_run=dry_run,
         no_auth=no_auth,
         output=output,
@@ -1004,7 +1016,7 @@ def print_operation_help(operation: Operation) -> None:
     print()
     print(
         "Generic flags: --path, --query, --header, --param, --body, --form, --file, "
-        "--output-file, --all, --all-page-size, --max-pages, --dry-run, --include"
+        "--output-file, --all, --all-page-size, --max-pages, --curl, --dry-run, --include"
     )
 
 

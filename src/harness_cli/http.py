@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import mimetypes
 import re
+import shlex
 import sys
 import urllib.error
 import urllib.parse
@@ -34,6 +35,7 @@ class CallOptions:
     form_values: dict[str, list[str]] = field(default_factory=dict)
     file_values: dict[str, list[str]] = field(default_factory=dict)
     include: bool = False
+    curl: bool = False
     dry_run: bool = False
     no_auth: bool = False
     output: str = "json"
@@ -92,7 +94,7 @@ def prepare_request(
     headers = _header_values(operation, values, options)
     if not options.no_auth:
         api_key = options.api_key or config.api_key
-        if not api_key and not options.dry_run:
+        if not api_key and not options.dry_run and not options.curl:
             raise ValueError("Missing Harness API key. Run `harness init` or set HARNESS_API_KEY.")
         if api_key:
             headers["x-api-key"] = api_key
@@ -233,6 +235,19 @@ def render_dry_run(request: PreparedRequest) -> None:
         except UnicodeDecodeError:
             body = f"<{len(request.body)} bytes>"
         print(body)
+
+
+def render_curl(request: PreparedRequest) -> None:
+    lines = [f"curl -X {shlex.quote(request.method)}", f"  {shlex.quote(request.url)}"]
+    for key, value in sorted(request.redacted_headers().items()):
+        lines.append(f"  -H {shlex.quote(f'{key}: {value}')}")
+    if request.body:
+        try:
+            body = request.body.decode("utf-8")
+        except UnicodeDecodeError:
+            body = f"<{len(request.body)} binary bytes>"
+        lines.append(f"  --data-raw {shlex.quote(body)}")
+    print(" \\\n".join(lines))
 
 
 def _merge_parameter_values(

@@ -115,6 +115,7 @@ harness api call list-roles-acc --query limit=10
 harness account-roles list-roles-acc --limit 10
 harness account-roles list-roles-acc --limit 10 --output table
 harness account-roles list-roles-acc --all --all-page-size 100 --output table
+harness account-roles list-roles-acc --limit 10 --curl
 harness account-roles get-role-acc --role my-role
 harness project-services create-service --org my-org --project my-project --body @service.json
 harness api call create-role-acc --body '{"identifier":"demo","name":"Demo"}'
@@ -136,6 +137,7 @@ Useful call flags:
 - `--all`
 - `--all-page-size 100`
 - `--max-pages 50`
+- `--curl`
 - `--dry-run`
 - `--include`
 - `--output json|raw|table`
@@ -148,6 +150,9 @@ endpoint expects URL-encoded form data instead.
 parameters such as `page`/`limit`, `pageIndex`/`pageSize`,
 `offset`/`limit`, or cursor-style `pageToken`/`cursor`. It stops at
 `--max-pages` as a safety guard.
+
+`--curl` prints a redacted cURL command and does not send the request. It is
+useful for sharing or debugging a prepared request without exposing API keys.
 
 `--account` and the active profile account are also used for endpoints that
 expect the `Harness-Account` header.
