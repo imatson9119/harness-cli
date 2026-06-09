@@ -77,6 +77,13 @@ class ConfigTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "host must be an http"):
                 set_config_value("host", "app.harness.io", config_path)
 
+    def test_host_with_query_is_rejected_when_written(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "config.json"
+
+            with self.assertRaisesRegex(ValueError, "query or fragment"):
+                set_config_value("host", "https://app.harness.io?debug=true", config_path)
+
     def test_invalid_host_environment_is_rejected(self) -> None:
         with (
             patch.dict(os.environ, {"HARNESS_HOST": "app.harness.io"}, clear=True),

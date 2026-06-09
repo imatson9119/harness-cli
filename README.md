@@ -112,6 +112,10 @@ Call the same operation through its generated group shortcut:
 harness account-roles list-roles-acc --limit 10
 ```
 
+Use `--host https://custom.example.com` for one-off calls against another
+Harness base URL. Like saved hosts, per-call host overrides must be full
+`http://` or `https://` URLs without query strings or fragments.
+
 Render JSON list responses as a table when you want a compact human view:
 
 ```bash

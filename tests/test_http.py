@@ -91,6 +91,48 @@ class HttpTests(unittest.TestCase):
                 ),
             )
 
+    def test_prepare_request_rejects_invalid_host_override(self) -> None:
+        manifest = load_manifest()
+        operation = manifest.by_operation_id["list-roles-acc"]
+        config = HarnessConfig(api_key="harness-secret-token")
+
+        with self.assertRaisesRegex(ValueError, "host must be an http"):
+            prepare_request(
+                operation,
+                config,
+                CallOptions(
+                    path_values={},
+                    query_values={},
+                    header_values={},
+                    param_values={},
+                    body=None,
+                    content_type=None,
+                    dry_run=True,
+                    host="app.harness.io",
+                ),
+            )
+
+    def test_prepare_request_rejects_query_in_host_override(self) -> None:
+        manifest = load_manifest()
+        operation = manifest.by_operation_id["list-roles-acc"]
+        config = HarnessConfig(api_key="harness-secret-token")
+
+        with self.assertRaisesRegex(ValueError, "query or fragment"):
+            prepare_request(
+                operation,
+                config,
+                CallOptions(
+                    path_values={},
+                    query_values={},
+                    header_values={},
+                    param_values={},
+                    body=None,
+                    content_type=None,
+                    dry_run=True,
+                    host="https://app.harness.io?debug=true",
+                ),
+            )
+
     def test_prepare_request_maps_account_to_harness_account_header(self) -> None:
         manifest = load_manifest()
         operation = manifest.by_operation_id["uploadSignature"]

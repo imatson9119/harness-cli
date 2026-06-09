@@ -417,6 +417,29 @@ class CliTests(unittest.TestCase):
         self.assertIn("curl -X GET", output)
         self.assertIn("https://app.harness.io/v1/roles?limit=1", output)
 
+    def test_generated_call_rejects_invalid_host_override(self) -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            redirect_stdout(stdout),
+            contextlib.redirect_stderr(stderr),
+        ):
+            status = main(
+                [
+                    "account-roles",
+                    "list-roles-acc",
+                    "--host",
+                    "app.harness.io",
+                    "--curl",
+                ]
+            )
+
+        self.assertEqual(status, 2)
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertIn("host must be an http(s) URL", stderr.getvalue())
+
     def test_generated_curl_preview_redacts_api_key(self) -> None:
         stdout = io.StringIO()
 

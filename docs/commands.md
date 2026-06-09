@@ -176,6 +176,9 @@ before sending it, and defaults the content type to `application/json`.
 `--body-template` sends the generated request-body sample for an operation;
 pair it with `--dry-run` when exploring an unfamiliar endpoint.
 
+`--host` overrides the Harness base URL for one call. It must be a full
+`http://` or `https://` URL and cannot include query strings or fragments.
+
 `--form` and `--file` build multipart request bodies by default. Use
 `--content-type application/x-www-form-urlencoded` with `--form` when an
 endpoint expects URL-encoded form data instead.

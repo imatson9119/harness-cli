@@ -1159,7 +1159,7 @@ def print_call_flags_help() -> None:
         "--dry-run",
         "--include",
         "--timeout seconds",
-        "--host URL",
+        "--host http(s)-url",
         "--api-key KEY",
         "--no-auth",
     ]:

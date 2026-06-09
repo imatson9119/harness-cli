@@ -13,7 +13,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
-from .config import HarnessConfig, redact_secret
+from .config import HarnessConfig, redact_secret, validate_host_url
 from .manifest import Operation, Parameter
 from .render import format_http_status, print_data_table, print_json, print_notice, stylize
 
@@ -93,7 +93,7 @@ def prepare_request(
     config: HarnessConfig,
     options: CallOptions,
 ) -> PreparedRequest:
-    host = (options.host or config.host).rstrip("/")
+    host = validate_host_url(options.host or config.host)
     values = _merge_parameter_values(operation, config, options)
     path = _format_path(operation, values)
     query = _query_values(operation, values, options)

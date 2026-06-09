@@ -35,7 +35,8 @@ Environment variables override the active profile at runtime. `HARNESS_PROFILE`
 selects a profile without modifying the file.
 
 Host values are validated as full `http://` or `https://` URLs during config
-load and write so malformed saved hosts fail before request construction.
+load, config write, and request construction so malformed saved hosts,
+environment overrides, or per-call `--host` values fail before URL assembly.
 
 Global CLI flags such as `--profile` and `--config` are implemented as
 temporary environment overrides for one invocation, so command handlers continue
