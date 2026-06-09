@@ -60,6 +60,22 @@ class CliTests(unittest.TestCase):
         self.assertEqual(data["content_type"], "application/json")
         self.assertEqual(data["body"]["identifier"], "example_role")
 
+    def test_api_body_writes_request_template_file(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_path = Path(temp_dir) / "role.json"
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+
+            with redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                status = main(["api", "body", "create-role-acc", "--output-file", str(output_path)])
+
+            data = json.loads(output_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(status, 0)
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertIn("Wrote", stderr.getvalue())
+        self.assertEqual(data["identifier"], "example_role")
+
     def test_dynamic_call_parses_kebab_case_parameters(self) -> None:
         manifest = load_manifest()
         operation = manifest.by_operation_id["list-roles-acc"]

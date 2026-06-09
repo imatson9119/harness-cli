@@ -80,6 +80,7 @@ Print a request-body template for create/update operations:
 
 ```bash
 harness api body create-role-acc > role.json
+harness api body create-role-acc --output-file role.json
 harness api body create-role-acc --json
 ```
 

@@ -7,6 +7,7 @@ import json
 import os
 import re
 import sys
+from pathlib import Path
 from typing import Any
 
 from . import __version__
@@ -37,7 +38,7 @@ from .http import (
     send_request,
 )
 from .manifest import HTTP_METHODS, Manifest, Operation, load_manifest
-from .render import CallStatus, glyph, print_error, print_json, print_table, stylize
+from .render import CallStatus, glyph, print_error, print_json, print_notice, print_table, stylize
 
 BUILTIN_COMMANDS = {"init", "config", "auth", "doctor", "api", "profile", "completion", "version"}
 PAIR_FLAGS = {"--path", "--query", "--header", "--param"}
@@ -629,20 +630,22 @@ def command_api_body(manifest: Manifest, argv: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="harness api body")
     parser.add_argument("operation", help="Operation id, command slug, or group/operation.")
     parser.add_argument("--content-type", default=None, help="Request content type to sample.")
+    parser.add_argument("--output-file", default=None, help="Write the template to a file.")
     parser.add_argument("--json", action="store_true", help="Include body metadata.")
     parsed = parser.parse_args(argv)
     operation = resolve_operation(manifest, parsed.operation)
     content_type, sample = request_body_sample(operation, parsed.content_type)
+    payload: Any = sample
     if parsed.json:
-        print_json(
-            {
-                "operation_id": operation.operation_id,
-                "content_type": content_type,
-                "body": sample,
-            }
-        )
+        payload = {
+            "operation_id": operation.operation_id,
+            "content_type": content_type,
+            "body": sample,
+        }
+    if parsed.output_file:
+        write_template_file(parsed.output_file, payload)
     else:
-        print(json.dumps(sample, indent=2, sort_keys=True))
+        print_json(payload)
     return 0
 
 
@@ -1006,6 +1009,17 @@ def request_body_sample(operation: Operation, content_type: str | None) -> tuple
     return selected, {}
 
 
+def write_template_file(output_file: str, payload: Any) -> None:
+    text = json.dumps(payload, indent=2, sort_keys=True) + "\n"
+    if output_file == "-":
+        sys.stdout.write(text)
+        return
+    path = Path(output_file)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    print_notice(f"Wrote {path} ({len(text.encode('utf-8'))} bytes)")
+
+
 def _example_required_flags(operation: Operation) -> str:
     parts = []
     for parameter in operation.parameters:
@@ -1148,7 +1162,9 @@ def _api_completion_candidates(manifest: Manifest, words: list[str], current: st
         if action == "body":
             if words[-1] == "--content-type" and operation and operation.request_body:
                 return _filter_candidates(list(operation.request_body.content_types), current)
-            return _filter_candidates(["--content-type", "--json", "--help"], current)
+            return _filter_candidates(
+                ["--content-type", "--output-file", "--json", "--help"], current
+            )
         if action == "call" and operation:
             return _operation_flag_completion_candidates(operation, current)
         return []
