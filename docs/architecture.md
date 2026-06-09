@@ -112,9 +112,11 @@ users do not see Python tracebacks during normal failure modes.
 ## Diagnostics
 
 `harness doctor` is local by default: it checks profile state, config file
-permissions, and manifest counts without sending traffic. `harness doctor
---network` opts into a real `GET /v1/version` reachability check against the
-configured host and reports the result in both human and JSON output.
+permissions, and manifest counts without sending traffic or mutating files.
+`harness doctor --fix-permissions` opts into repairing config file permissions
+to `0600`. `harness doctor --network` opts into a real `GET /v1/version`
+reachability check against the configured host and reports the result in both
+human and JSON output.
 
 ## Refreshing Endpoint Coverage
 

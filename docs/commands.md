@@ -49,13 +49,15 @@ init --profile NAME` writes onboarding values into a named profile.
 
 ```bash
 harness doctor
+harness doctor --fix-permissions
 harness doctor --network
 harness doctor --network --timeout 5 --json
 harness auth status
 ```
 
 `harness doctor` checks local config, profile, permissions, and generated
-manifest counts. `--network` also sends `GET /v1/version` to the configured
+manifest counts. `--fix-permissions` repairs the config file mode to `0600`
+when possible. `--network` also sends `GET /v1/version` to the configured
 Harness host so setup problems can be separated from connectivity problems.
 
 ## Configuration

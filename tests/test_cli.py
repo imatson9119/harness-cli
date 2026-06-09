@@ -697,6 +697,72 @@ class CliTests(unittest.TestCase):
         self.assertTrue(data["network_check"]["ok"])
         self.assertEqual(data["network_check"]["path"], "/v1/version")
 
+    def test_doctor_reports_loose_config_permissions_without_fixing(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "config.json"
+            config_path.write_text(
+                json.dumps(
+                    {
+                        "current_profile": "default",
+                        "profiles": {
+                            "default": {
+                                "api_key": "secret-token",
+                                "host": "https://app.harness.io",
+                            }
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            config_path.chmod(0o644)
+            stdout = io.StringIO()
+
+            with (
+                patch.dict(os.environ, {"HARNESS_CONFIG": str(config_path)}, clear=True),
+                redirect_stdout(stdout),
+            ):
+                status = main(["doctor", "--json"])
+            mode = config_path.stat().st_mode & 0o777
+
+        data = json.loads(stdout.getvalue())
+        self.assertEqual(status, 1)
+        self.assertFalse(data["fixed_permissions"])
+        self.assertEqual(mode, 0o644)
+        self.assertIn("Config file permissions are 644; expected 600.", data["issues"])
+
+    def test_doctor_can_fix_config_permissions(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "config.json"
+            config_path.write_text(
+                json.dumps(
+                    {
+                        "current_profile": "default",
+                        "profiles": {
+                            "default": {
+                                "api_key": "secret-token",
+                                "host": "https://app.harness.io",
+                            }
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            config_path.chmod(0o644)
+            stdout = io.StringIO()
+
+            with (
+                patch.dict(os.environ, {"HARNESS_CONFIG": str(config_path)}, clear=True),
+                redirect_stdout(stdout),
+            ):
+                status = main(["doctor", "--fix-permissions", "--json"])
+            mode = config_path.stat().st_mode & 0o777
+
+        data = json.loads(stdout.getvalue())
+        self.assertEqual(status, 0)
+        self.assertTrue(data["fixed_permissions"])
+        self.assertEqual(data["issues"], [])
+        self.assertEqual(mode, 0o600)
+
     def test_doctor_network_check_reports_transport_failure(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             config_path = Path(temp_dir) / "config.json"

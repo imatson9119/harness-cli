@@ -451,6 +451,11 @@ def command_doctor(argv: list[str]) -> int:
         help="Also check reachability with GET /v1/version.",
     )
     parser.add_argument(
+        "--fix-permissions",
+        action="store_true",
+        help="Repair config file permissions to 0600 when possible.",
+    )
+    parser.add_argument(
         "--timeout",
         type=float,
         default=10.0,
@@ -463,12 +468,21 @@ def command_doctor(argv: list[str]) -> int:
     config = load_config()
     manifest = load_manifest()
     issues: list[str] = []
+    fixed_permissions = False
     if not config.api_key:
         issues.append("No API key configured.")
     if config_path.exists():
         mode = config_path.stat().st_mode & 0o777
         if mode & 0o077:
-            issues.append(f"Config file permissions are {mode:o}; expected 600.")
+            if parsed.fix_permissions:
+                try:
+                    config_path.chmod(0o600)
+                    fixed_permissions = True
+                    mode = config_path.stat().st_mode & 0o777
+                except OSError as exc:
+                    issues.append(f"Could not fix config file permissions: {exc}")
+            if mode & 0o077:
+                issues.append(f"Config file permissions are {mode:o}; expected 600.")
     else:
         issues.append(f"Config file does not exist at {config_path}.")
     network_check: dict[str, Any] | None = None
@@ -482,6 +496,7 @@ def command_doctor(argv: list[str]) -> int:
         "host": config.host,
         "profile": config.profile,
         "has_api_key": bool(config.api_key),
+        "fixed_permissions": fixed_permissions,
         "operation_count": manifest.operation_count,
         "group_count": len(manifest.groups),
         "manifest_source": manifest.source,
@@ -495,6 +510,8 @@ def command_doctor(argv: list[str]) -> int:
         print(f"Profile: {config.profile}")
         print(f"Host: {config.host}")
         print(f"API key: {'configured' if config.api_key else 'missing'}")
+        if fixed_permissions:
+            print("Config permissions: fixed to 600")
         print(f"Generated operations: {manifest.operation_count}")
         print(f"Generated groups: {len(manifest.groups)}")
         print_doctor_network_check(network_check)

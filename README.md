@@ -203,6 +203,7 @@ motion. Use `HARNESS_STATUS=never` when you want no call status on stderr.
 ```bash
 harness doctor
 harness --profile prod doctor
+harness doctor --fix-permissions
 harness doctor --network
 harness auth status
 harness profile list
