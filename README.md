@@ -258,5 +258,16 @@ uv run python -m compileall -q src tests scripts
 uv build --sdist --wheel
 ```
 
+Install commit-time formatting hooks:
+
+```bash
+uv run --extra dev pre-commit install
+uv run --extra dev pre-commit run --all-files
+```
+
+The hooks use `uv run --frozen --extra dev ruff format` and
+`uv run --frozen --extra dev ruff check --fix` so everyday commits get the same
+formatter and autofix behavior as CI.
+
 See [CONTRIBUTING.md](CONTRIBUTING.md) and
 [docs/architecture.md](docs/architecture.md) for the project shape.

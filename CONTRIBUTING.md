@@ -16,6 +16,16 @@ uv run python -m unittest
 The CLI has no runtime dependencies. Keep new dependencies out unless they
 remove meaningful complexity and are worth the installation cost.
 
+Install local formatting hooks when you start contributing:
+
+```bash
+uv run --extra dev pre-commit install
+uv run --extra dev pre-commit run --all-files
+```
+
+The hooks run Ruff through `uv` so formatting and autofixable lint issues are
+caught before CI gets to make a dramatic little entrance.
+
 ## Endpoint Manifest
 
 Endpoint commands are generated from the official Harness API docs:
