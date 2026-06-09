@@ -153,6 +153,34 @@ class CliTests(unittest.TestCase):
         self.assertTrue(operations)
         self.assertTrue(all("/v1/roles" in item["path"] for item in operations))
 
+    def test_api_call_prints_dispatcher_help(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(["api", "call", "--help"])
+
+        output = stdout.getvalue()
+        self.assertEqual(status, 0)
+        self.assertIn("Usage:", output)
+        self.assertIn("harness api call OPERATION [flags]", output)
+        self.assertIn("--content-type value", output)
+        self.assertIn("--timeout seconds", output)
+        self.assertIn("--no-auth", output)
+
+    def test_api_call_operation_help_matches_generated_surface(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(["api", "call", "list-roles-acc", "--help"])
+
+        output = stdout.getvalue()
+        self.assertEqual(status, 0)
+        self.assertIn("Usage: harness account-roles list-roles-acc [flags]", output)
+        self.assertIn("harness api call list-roles-acc [flags]", output)
+        self.assertIn("Pagination: Supports --all", output)
+        self.assertIn("--output json|raw|table", output)
+        self.assertIn("--api-key KEY", output)
+
     def test_dynamic_call_parses_kebab_case_parameters(self) -> None:
         manifest = load_manifest()
         operation = manifest.by_operation_id["list-roles-acc"]

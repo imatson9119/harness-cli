@@ -111,6 +111,8 @@ Useful discovery filters:
 ## API Calls
 
 ```bash
+harness api call --help
+harness api call list-roles-acc --help
 harness api call list-roles-acc --query limit=10
 harness account-roles list-roles-acc --limit 10
 harness account-roles list-roles-acc --limit 10 --output table

@@ -733,9 +733,13 @@ def command_api_body(manifest: Manifest, argv: list[str]) -> int:
 
 
 def command_api_call(manifest: Manifest, argv: list[str]) -> int:
-    if not argv:
-        raise ValueError("Usage: harness api call OPERATION [flags]")
+    if not argv or argv[0] in {"-h", "--help", "help"}:
+        print_api_call_help()
+        return 0
     operation = resolve_operation(manifest, argv[0])
+    if len(argv) > 1 and argv[1] in {"-h", "--help", "help"}:
+        print_operation_help(operation)
+        return 0
     return call_operation(operation, argv[1:])
 
 
@@ -1014,10 +1018,54 @@ def print_operation_help(operation: Operation) -> None:
         for example in examples:
             print(f"  {example}")
     print()
+    print_call_flags_help()
+
+
+def print_api_call_help() -> None:
     print(
-        "Generic flags: --path, --query, --header, --param, --body, --form, --file, "
-        "--output-file, --all, --all-page-size, --max-pages, --curl, --dry-run, --include"
+        """Usage:
+  harness api call OPERATION [flags]
+  harness api call OPERATION --help
+
+Call any generated Harness API operation by operation id, command slug, or
+group/operation pair.
+
+Examples:
+  harness api call list-roles-acc --query limit=10
+  harness api call account-roles/list-roles-acc --curl
+  harness api call create-role-acc --body @role.json
+"""
     )
+    print_call_flags_help()
+
+
+def print_call_flags_help() -> None:
+    print("Generic flags:")
+    for flag in [
+        "--path key=value",
+        "--query key=value",
+        "--header key=value",
+        "--param key=value",
+        "--body VALUE|@file|-",
+        "--body-file path",
+        "--body-json JSON",
+        "--form key=value",
+        "--file field=@path",
+        "--content-type value",
+        "--output json|raw|table",
+        "--output-file path",
+        "--all",
+        "--all-page-size N",
+        "--max-pages N",
+        "--curl",
+        "--dry-run",
+        "--include",
+        "--timeout seconds",
+        "--host URL",
+        "--api-key KEY",
+        "--no-auth",
+    ]:
+        print(f"  {flag}")
 
 
 def print_operation_detail(operation: Operation) -> None:
