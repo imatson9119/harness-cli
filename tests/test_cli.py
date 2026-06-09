@@ -35,7 +35,27 @@ class CliTests(unittest.TestCase):
 
         self.assertTrue(options.dry_run)
         self.assertEqual(options.output, "table")
-        self.assertEqual(options.param_values["limit"], "5")
+        self.assertEqual(options.query_values["limit"], ["5"])
+
+    def test_dynamic_call_repeats_query_parameter_flags(self) -> None:
+        manifest = load_manifest()
+        operation = manifest.by_operation_id["listFilesAndFolders"]
+
+        options = parse_call_options(
+            operation,
+            [
+                "--account-identifier",
+                "acc",
+                "--identifiers",
+                "one",
+                "--identifiers",
+                "two",
+            ],
+            HarnessConfig(),
+        )
+
+        self.assertEqual(options.query_values["accountIdentifier"], ["acc"])
+        self.assertEqual(options.query_values["identifiers"], ["one", "two"])
 
     def test_dynamic_call_parses_pagination_helpers(self) -> None:
         manifest = load_manifest()

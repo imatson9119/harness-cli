@@ -594,6 +594,7 @@ def parse_call_options(operation: Operation, argv: list[str], config: HarnessCon
     api_key: str | None = None
 
     parameter_names = {parameter.name for parameter in operation.parameters}
+    parameter_by_name = {parameter.name: parameter for parameter in operation.parameters}
     parameter_flag_names = {
         _flag_name(parameter.name): parameter.name for parameter in operation.parameters
     }
@@ -684,7 +685,11 @@ def parse_call_options(operation: Operation, argv: list[str], config: HarnessCon
                 )
                 raise ValueError(f"Unknown flag for {operation.operation_id}: --{name}.{hint}")
             if mapped in parameter_names or mapped in common_names.values():
-                param_values[mapped] = value
+                parameter = parameter_by_name.get(mapped)
+                if parameter and parameter.location == "query":
+                    query_values.setdefault(mapped, []).append(value)
+                else:
+                    param_values[mapped] = value
         else:
             raise ValueError(f"Unexpected argument: {token}")
 
