@@ -482,6 +482,15 @@ class CliTests(unittest.TestCase):
         self.assertEqual(status, 0)
         self.assertIn("account-roles\n", stdout.getvalue())
 
+    def test_completion_lists_doctor_fix_permissions(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(["__complete", "--current", "--fix", "--", "doctor"])
+
+        self.assertEqual(status, 0)
+        self.assertIn("--fix-permissions\n", stdout.getvalue())
+
     def test_completion_scripts_keep_shell_quotes_balanced(self) -> None:
         for shell, expected in [
             ("zsh", '_harness "$@"'),
@@ -540,6 +549,45 @@ class CliTests(unittest.TestCase):
 
         self.assertEqual(status, 0)
         self.assertIn("--limit\n", stdout.getvalue())
+
+    def test_completion_lists_api_call_content_types(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(
+                [
+                    "__complete",
+                    "--current",
+                    "application/",
+                    "--",
+                    "api",
+                    "call",
+                    "create-role-acc",
+                    "--content-type",
+                ]
+            )
+
+        self.assertEqual(status, 0)
+        self.assertIn("application/json\n", stdout.getvalue())
+
+    def test_completion_lists_generated_call_content_types(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(
+                [
+                    "__complete",
+                    "--current",
+                    "application/",
+                    "--",
+                    "account-roles",
+                    "create-role-acc",
+                    "--content-type",
+                ]
+            )
+
+        self.assertEqual(status, 0)
+        self.assertIn("application/json\n", stdout.getvalue())
 
     def test_api_describe_prints_examples_and_pagination_hint(self) -> None:
         stdout = io.StringIO()

@@ -1379,7 +1379,9 @@ def completion_candidates(manifest: Manifest, words: list[str], current: str) ->
     if command == "auth":
         return _filter_candidates(["status"], current) if len(words) == 1 else []
     if command == "doctor":
-        return _filter_candidates(["--json", "--network", "--timeout", "--help"], current)
+        return _filter_candidates(
+            ["--fix-permissions", "--json", "--network", "--timeout", "--help"], current
+        )
     if command == "init":
         return _filter_candidates(
             [
@@ -1431,6 +1433,13 @@ def _api_completion_candidates(manifest: Manifest, words: list[str], current: st
             return _filter_candidates(
                 ["--content-type", "--output-file", "--json", "--help"], current
             )
+        if (
+            action == "call"
+            and words[-1] == "--content-type"
+            and operation
+            and operation.request_body
+        ):
+            return _filter_candidates(list(operation.request_body.content_types), current)
         if action == "call" and operation:
             return _operation_flag_completion_candidates(operation, current)
         return []
@@ -1495,6 +1504,8 @@ def _generated_completion_candidates(
     operation = manifest.by_group_command.get((group, words[0]))
     if not operation:
         return []
+    if words[-1] == "--content-type" and operation.request_body:
+        return _filter_candidates(list(operation.request_body.content_types), current)
     return _operation_flag_completion_candidates(operation, current)
 
 
