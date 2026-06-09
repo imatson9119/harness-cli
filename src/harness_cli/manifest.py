@@ -101,15 +101,29 @@ class Manifest:
         text: str | None = None,
         tag: str | None = None,
         method: str | None = None,
+        group: str | None = None,
+        path: str | None = None,
+        has_body: bool = False,
+        deprecated: bool = False,
     ) -> list[Operation]:
         needle = text.lower() if text else None
         method_filter = method.lower() if method else None
         tag_filter = tag.lower() if tag else None
+        group_filter = group.lower() if group else None
+        path_filter = path.lower() if path else None
         results: list[Operation] = []
         for operation in self.operations:
             if method_filter and operation.method != method_filter:
                 continue
+            if group_filter and operation.group != group_filter:
+                continue
             if tag_filter and tag_filter not in operation.tag.lower():
+                continue
+            if path_filter and path_filter not in operation.path.lower():
+                continue
+            if has_body and operation.request_body is None:
+                continue
+            if deprecated and not operation.deprecated:
                 continue
             if needle:
                 haystack = " ".join(

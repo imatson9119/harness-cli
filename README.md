@@ -65,6 +65,8 @@ List generated operations:
 ```bash
 harness api list --search pipeline
 harness api list --tag "Account Roles"
+harness api list --group account-roles --has-body
+harness api list --method post --path /v1/roles
 ```
 
 Describe an operation:

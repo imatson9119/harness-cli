@@ -595,11 +595,31 @@ def command_api_list(manifest: Manifest, argv: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="harness api list")
     parser.add_argument("--search", default=None, help="Search operations.")
     parser.add_argument("--tag", default=None, help="Filter by tag display name.")
+    parser.add_argument("--group", default=None, help="Filter by generated group slug.")
     parser.add_argument("--method", default=None, help="Filter by HTTP method.")
+    parser.add_argument("--path", default=None, help="Filter by path substring.")
+    parser.add_argument(
+        "--has-body",
+        action="store_true",
+        help="Only include operations with request bodies.",
+    )
+    parser.add_argument(
+        "--deprecated",
+        action="store_true",
+        help="Only include deprecated operations.",
+    )
     parser.add_argument("--limit", type=int, default=50, help="Maximum rows to print.")
     parser.add_argument("--json", action="store_true", help="Print JSON.")
     parsed = parser.parse_args(argv)
-    operations = manifest.search(text=parsed.search, tag=parsed.tag, method=parsed.method)
+    operations = manifest.search(
+        text=parsed.search,
+        tag=parsed.tag,
+        method=parsed.method,
+        group=parsed.group,
+        path=parsed.path,
+        has_body=parsed.has_body,
+        deprecated=parsed.deprecated,
+    )
     limited = operations[: parsed.limit]
     if parsed.json:
         print_json([operation_to_dict(operation) for operation in limited])
@@ -1113,6 +1133,8 @@ def completion_candidates(manifest: Manifest, words: list[str], current: str) ->
         return _filter_candidates(["json", "raw", "table"], current)
     if words and words[-1] == "--method":
         return _filter_candidates(sorted(HTTP_METHODS), current)
+    if len(words) >= 2 and words[0] == "api" and words[1] == "list" and words[-1] == "--group":
+        return _filter_candidates(sorted(manifest.groups), current)
 
     if not words:
         return _filter_candidates(_top_level_completion_candidates(manifest), current)
@@ -1174,7 +1196,19 @@ def _api_completion_candidates(manifest: Manifest, words: list[str], current: st
         return _filter_candidates(["--json", "--help"], current)
     if action == "list":
         return _filter_candidates(
-            ["--search", "--tag", "--method", "--limit", "--json", "--help"], current
+            [
+                "--search",
+                "--tag",
+                "--group",
+                "--method",
+                "--path",
+                "--has-body",
+                "--deprecated",
+                "--limit",
+                "--json",
+                "--help",
+            ],
+            current,
         )
     return _filter_candidates(["body", "call", "describe", "groups", "info", "list"], current)
 

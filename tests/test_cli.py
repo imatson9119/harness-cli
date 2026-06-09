@@ -76,6 +76,39 @@ class CliTests(unittest.TestCase):
         self.assertIn("Wrote", stderr.getvalue())
         self.assertEqual(data["identifier"], "example_role")
 
+    def test_api_list_filters_to_body_operations_in_group(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(
+                [
+                    "api",
+                    "list",
+                    "--group",
+                    "account-roles",
+                    "--has-body",
+                    "--json",
+                ]
+            )
+
+        operations = json.loads(stdout.getvalue())
+        self.assertEqual(status, 0)
+        self.assertTrue(operations)
+        self.assertTrue(all(item["group"] == "account-roles" for item in operations))
+        self.assertTrue(all(item["request_body"] is not None for item in operations))
+        self.assertIn("create-role-acc", {item["operation_id"] for item in operations})
+
+    def test_api_list_filters_by_path_substring(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(["api", "list", "--path", "/v1/roles", "--json"])
+
+        operations = json.loads(stdout.getvalue())
+        self.assertEqual(status, 0)
+        self.assertTrue(operations)
+        self.assertTrue(all("/v1/roles" in item["path"] for item in operations))
+
     def test_dynamic_call_parses_kebab_case_parameters(self) -> None:
         manifest = load_manifest()
         operation = manifest.by_operation_id["list-roles-acc"]
@@ -174,6 +207,15 @@ class CliTests(unittest.TestCase):
 
         self.assertEqual(status, 0)
         self.assertIn("body\n", stdout.getvalue())
+
+    def test_completion_lists_api_list_groups(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(["__complete", "--current", "account-", "--", "api", "list", "--group"])
+
+        self.assertEqual(status, 0)
+        self.assertIn("account-roles\n", stdout.getvalue())
 
     def test_completion_scripts_keep_shell_quotes_balanced(self) -> None:
         for shell, expected in [

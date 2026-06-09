@@ -78,6 +78,8 @@ harness api info
 harness api groups
 harness api list --tag "Pipeline"
 harness api list --method post --search execute
+harness api list --group account-roles --has-body
+harness api list --path /v1/roles --method post
 harness api describe execute-a-pipeline
 harness api body create-role-acc
 harness api body create-role-acc --output-file role.json
@@ -90,6 +92,16 @@ stable `api call` form. `harness api body` prints request-body templates from
 official examples where available, then falls back to a compact schema-derived
 sample. Use `--output-file` to write the template before editing it and sending
 it with `--body @file.json`.
+
+Useful discovery filters:
+
+- `--search TEXT`
+- `--tag "Display Name"`
+- `--group generated-group`
+- `--method get|post|put|patch|delete`
+- `--path /path-fragment`
+- `--has-body`
+- `--deprecated`
 
 ## API Calls
 
