@@ -59,6 +59,15 @@ class CliTests(unittest.TestCase):
         self.assertEqual(status, 2)
         self.assertIn("--limit must be greater than zero", stderr.getvalue())
 
+    def test_api_list_rejects_non_positive_limit(self) -> None:
+        stderr = io.StringIO()
+
+        with contextlib.redirect_stderr(stderr):
+            status = main(["api", "list", "--limit", "0"])
+
+        self.assertEqual(status, 2)
+        self.assertIn("--limit must be greater than zero", stderr.getvalue())
+
     def test_global_profile_and_config_select_command_context(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             config_path = Path(temp_dir) / "config.json"
@@ -493,6 +502,28 @@ class CliTests(unittest.TestCase):
 
         self.assertEqual(status, 2)
         self.assertIn("--curl cannot be combined with --all", stderr.getvalue())
+
+    def test_call_timeout_rejects_non_positive_value(self) -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+
+        with redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            status = main(["account-roles", "list-roles-acc", "--timeout", "0", "--curl"])
+
+        self.assertEqual(status, 2)
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertIn("--timeout must be greater than zero", stderr.getvalue())
+
+    def test_call_timeout_rejects_non_numeric_value(self) -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+
+        with redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            status = main(["account-roles", "list-roles-acc", "--timeout", "soon", "--curl"])
+
+        self.assertEqual(status, 2)
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertIn("--timeout must be a number of seconds", stderr.getvalue())
 
     def test_dynamic_call_parses_form_and_file_parameters(self) -> None:
         manifest = load_manifest()

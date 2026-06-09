@@ -189,6 +189,8 @@ parameters such as `page`/`limit`, `page`/`size`, `page`/`pageSize`,
 `offset`/`pageSize`, or cursor-style `pageToken`/`cursor`. It stops at
 `--max-pages` as a safety guard.
 
+`--timeout`, `--all-page-size`, and `--max-pages` must be positive numbers.
+
 `--curl` prints a redacted cURL command and does not send the request. It is
 useful for sharing or debugging a prepared request without exposing API keys.
 Dry-run and cURL previews also redact `Authorization`, case variants of

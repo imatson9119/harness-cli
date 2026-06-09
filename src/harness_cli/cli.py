@@ -735,6 +735,8 @@ def command_api_list(manifest: Manifest, argv: list[str]) -> int:
         has_body=parsed.has_body,
         deprecated=parsed.deprecated,
     )
+    if parsed.limit <= 0:
+        raise ValueError("--limit must be greater than zero")
     limited = operations[: parsed.limit]
     if parsed.json:
         print_json([operation_to_dict(operation) for operation in limited])
@@ -970,17 +972,13 @@ def parse_call_options(operation: Operation, argv: list[str], config: HarnessCon
             index += 1
         elif token == "--all-page-size":
             value, index = _consume_value(argv, index)
-            all_page_size = int(value)
-            if all_page_size <= 0:
-                raise ValueError("--all-page-size must be greater than zero")
+            all_page_size = _parse_positive_int(value, "--all-page-size")
         elif token == "--max-pages":
             value, index = _consume_value(argv, index)
-            max_pages = int(value)
-            if max_pages <= 0:
-                raise ValueError("--max-pages must be greater than zero")
+            max_pages = _parse_positive_int(value, "--max-pages")
         elif token == "--timeout":
             value, index = _consume_value(argv, index)
-            timeout = float(value)
+            timeout = _parse_positive_float(value, "--timeout")
         elif token == "--host":
             host, index = _consume_value(argv, index)
         elif token == "--api-key":
@@ -1641,6 +1639,26 @@ def _split_columns(value: str) -> list[str]:
     if not columns:
         raise ValueError("--columns requires at least one column name")
     return columns
+
+
+def _parse_positive_int(value: str, flag: str) -> int:
+    try:
+        parsed = int(value)
+    except ValueError as exc:
+        raise ValueError(f"{flag} must be an integer") from exc
+    if parsed <= 0:
+        raise ValueError(f"{flag} must be greater than zero")
+    return parsed
+
+
+def _parse_positive_float(value: str, flag: str) -> float:
+    try:
+        parsed = float(value)
+    except ValueError as exc:
+        raise ValueError(f"{flag} must be a number of seconds") from exc
+    if parsed <= 0:
+        raise ValueError(f"{flag} must be greater than zero")
+    return parsed
 
 
 def _flag_name(name: str) -> str:
