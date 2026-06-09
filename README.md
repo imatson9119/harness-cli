@@ -140,10 +140,13 @@ Send JSON request bodies from a file:
 ```bash
 harness project-services create-service --org my-org --project my-project --body @service.json
 harness project-services create-service --org my-org --project my-project --body-json @service.json
+harness api call create-role-acc --body-template --dry-run
 ```
 
 Use `--body-json` for inline JSON, `@file`, or `-` stdin when you want the CLI
-to validate the payload before sending it.
+to validate the payload before sending it. Use `--body-template` to send the
+generated request-body sample for an operation; pair it with `--dry-run` first
+when exploring a new endpoint.
 
 Upload multipart files for file-oriented endpoints:
 

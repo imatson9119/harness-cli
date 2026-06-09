@@ -55,6 +55,7 @@ GENERIC_CALL_FLAGS = (
     "--body",
     "--body-json",
     "--body-file",
+    "--body-template",
     "--form",
     "--file",
     "--content-type",
@@ -104,7 +105,7 @@ CALL_VALUE_FLAGS = {
     "--output-file",
     "--timeout",
 }
-CALL_BOOLEAN_FLAGS = {"--all", "--curl", "--dry-run", "--include", "--no-auth"}
+CALL_BOOLEAN_FLAGS = {"--all", "--body-template", "--curl", "--dry-run", "--include", "--no-auth"}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -843,6 +844,7 @@ def parse_call_options(operation: Operation, argv: list[str], config: HarnessCon
     file_values: dict[str, list[str]] = {}
     body: str | None = None
     body_json = False
+    body_template = False
     content_type: str | None = None
     include = False
     curl = False
@@ -908,6 +910,9 @@ def parse_call_options(operation: Operation, argv: list[str], config: HarnessCon
         elif token == "--body-file":
             value, index = _consume_value(argv, index)
             body = f"@{value}"
+        elif token == "--body-template":
+            body_template = True
+            index += 1
         elif token == "--form":
             value, index = _consume_value(argv, index)
             key, parsed_value = _split_pair(value)
@@ -973,6 +978,12 @@ def parse_call_options(operation: Operation, argv: list[str], config: HarnessCon
         raise ValueError("--all-page-size and --max-pages require --all")
     if table_columns and output != "table":
         raise ValueError("--columns requires --output table")
+    if body_template:
+        if body is not None or form_values or file_values:
+            raise ValueError(
+                "--body-template cannot be combined with other body, form, or file input."
+            )
+        content_type, body, body_json = request_body_template(operation, content_type)
 
     return CallOptions(
         path_values=path_values,
@@ -1058,6 +1069,7 @@ def print_operation_help(operation: Operation) -> None:
         print()
         print(f"Body: {required}; content types: {', '.join(operation.request_body.content_types)}")
         print(f"Body template: harness api body {operation.operation_id}")
+        print("Send template: add --body-template")
     pagination = pagination_help(operation)
     if pagination:
         print()
@@ -1100,6 +1112,7 @@ def print_call_flags_help() -> None:
         "--body VALUE|@file|-",
         "--body-file path",
         "--body-json JSON",
+        "--body-template",
         "--form key=value",
         "--file field=@path",
         "--content-type value",
@@ -1154,6 +1167,7 @@ def print_operation_detail(operation: Operation) -> None:
             + f" ({', '.join(operation.request_body.content_types)})"
         )
         print(f"Body template: harness api body {operation.operation_id}")
+        print("Send template: add --body-template")
     pagination = pagination_help(operation)
     if pagination:
         print()
@@ -1200,6 +1214,23 @@ def request_body_sample(operation: Operation, content_type: str | None) -> tuple
         return selected, samples[selected]
     selected = request_body.content_types[0] if request_body.content_types else "application/json"
     return selected, {}
+
+
+def request_body_template(
+    operation: Operation,
+    content_type: str | None,
+) -> tuple[str, str, bool]:
+    selected_content_type, sample = request_body_sample(operation, content_type)
+    is_json = _is_json_content_type(selected_content_type)
+    if isinstance(sample, str):
+        return selected_content_type, sample, is_json
+    if not is_json:
+        raise ValueError(
+            "--body-template can only serialize structured samples for JSON content types. "
+            f"Use `harness api body {operation.operation_id}` and pass the result with "
+            "--body instead."
+        )
+    return selected_content_type, json.dumps(sample, indent=2, sort_keys=True), True
 
 
 def write_template_file(output_file: str, payload: Any) -> None:
@@ -1249,6 +1280,10 @@ def _example_body_flags(operation: Operation) -> str:
     if "application/x-www-form-urlencoded" in content_types:
         return " --form field=value --content-type application/x-www-form-urlencoded"
     return " --body @body.json"
+
+
+def _is_json_content_type(content_type: str) -> bool:
+    return content_type == "application/json" or content_type.endswith("+json")
 
 
 def _placeholder(name: str) -> str:

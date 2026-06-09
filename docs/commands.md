@@ -124,6 +124,7 @@ harness account-roles list-roles-acc --limit 10 --curl
 harness account-roles get-role-acc --role my-role
 harness project-services create-service --org my-org --project my-project --body @service.json
 harness project-services create-service --org my-org --project my-project --body-json @service.json
+harness api call create-role-acc --body-template --dry-run
 harness api call create-role-acc --body '{"identifier":"demo","name":"Demo"}'
 harness artifact-signing upload-signature --org my-org --project my-project --file signature=@sig.json
 harness file-store download-file --identifier readme --output-file readme.md
@@ -137,6 +138,7 @@ Useful call flags:
 - `--param key=value`
 - `--body @file.json`
 - `--body -`
+- `--body-template`
 - `--form key=value`
 - `--file field=@path`
 - `--output-file path`
@@ -158,6 +160,8 @@ names such as `metadata.status` read nested object fields.
 
 `--body-json` accepts inline JSON, `@file`, or `-` stdin, validates the payload
 before sending it, and defaults the content type to `application/json`.
+`--body-template` sends the generated request-body sample for an operation;
+pair it with `--dry-run` when exploring an unfamiliar endpoint.
 
 `--form` and `--file` build multipart request bodies by default. Use
 `--content-type application/x-www-form-urlencoded` with `--form` when an

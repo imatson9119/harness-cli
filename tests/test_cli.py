@@ -181,6 +181,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("--output json|raw|table", output)
         self.assertIn("--api-key KEY", output)
         self.assertIn("--columns a,b,c", output)
+        self.assertIn("--body-template", output)
 
     def test_api_call_operation_help_works_after_flags(self) -> None:
         stdout = io.StringIO()
@@ -278,6 +279,30 @@ class CliTests(unittest.TestCase):
         self.assertEqual(options.body, '{"identifier":"demo"}')
         self.assertEqual(options.content_type, "application/json")
 
+    def test_body_template_uses_generated_json_sample(self) -> None:
+        manifest = load_manifest()
+        operation = manifest.by_operation_id["create-role-acc"]
+
+        options = parse_call_options(operation, ["--body-template", "--dry-run"], HarnessConfig())
+
+        self.assertTrue(options.body_json)
+        self.assertEqual(options.content_type, "application/json")
+        self.assertIsNotNone(options.body)
+        body = json.loads(options.body)
+        self.assertEqual(body["identifier"], "example_role")
+        self.assertIn("permissions", body)
+
+    def test_body_template_rejects_other_body_inputs(self) -> None:
+        manifest = load_manifest()
+        operation = manifest.by_operation_id["create-role-acc"]
+
+        with self.assertRaisesRegex(ValueError, "--body-template cannot be combined"):
+            parse_call_options(
+                operation,
+                ["--body-template", "--body", "{}"],
+                HarnessConfig(),
+            )
+
     def test_body_json_invalid_input_prints_clean_error(self) -> None:
         stdout = io.StringIO()
         stderr = io.StringIO()
@@ -288,6 +313,18 @@ class CliTests(unittest.TestCase):
         self.assertEqual(status, 2)
         self.assertEqual(stdout.getvalue(), "")
         self.assertIn("--body-json received invalid JSON", stderr.getvalue())
+
+    def test_generated_call_can_dry_run_body_template(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(["api", "call", "create-role-acc", "--body-template", "--dry-run"])
+
+        output = stdout.getvalue()
+        self.assertEqual(status, 0)
+        self.assertIn("POST https://app.harness.io/v1/roles", output)
+        self.assertIn("Content-Type: application/json", output)
+        self.assertIn('"identifier": "example_role"', output)
 
     def test_table_columns_parse_for_table_output(self) -> None:
         manifest = load_manifest()
