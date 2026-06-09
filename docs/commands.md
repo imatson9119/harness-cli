@@ -180,8 +180,11 @@ names such as `metadata.status` read nested object fields.
 
 `--body-json` accepts inline JSON, `@file`, or `-` stdin, validates the payload
 before sending it, and defaults the content type to `application/json`.
-`--body-template` sends the generated request-body sample for an operation;
-pair it with `--dry-run` when exploring an unfamiliar endpoint.
+`--body-template` sends the generated request-body sample for an operation when
+the sample can be serialized as JSON or YAML; pair it with `--dry-run` when
+exploring an unfamiliar endpoint. For other structured content types, run
+`harness api body OPERATION --content-type TYPE --output-file body.txt`, edit
+the result, and send it with `--body @body.txt --content-type TYPE`.
 
 `--host` overrides the Harness base URL for one call. It must be a full
 `http://` or `https://` URL and cannot include query strings or fragments.

@@ -479,6 +479,22 @@ class CliTests(unittest.TestCase):
         self.assertEqual(body["identifier"], "example_role")
         self.assertIn("permissions", body)
 
+    def test_body_template_uses_generated_yaml_sample(self) -> None:
+        manifest = load_manifest()
+        operation = manifest.by_operation_id["getAccessControlList"]
+
+        options = parse_call_options(
+            operation,
+            ["--body-template", "--content-type", "application/yaml", "--dry-run"],
+            HarnessConfig(),
+        )
+
+        self.assertFalse(options.body_json)
+        self.assertEqual(options.content_type, "application/yaml")
+        self.assertIsNotNone(options.body)
+        self.assertTrue(options.body.startswith("permissions:\n"), options.body)
+        self.assertIn("- permission: string", options.body)
+
     def test_body_template_rejects_other_body_inputs(self) -> None:
         manifest = load_manifest()
         operation = manifest.by_operation_id["create-role-acc"]
@@ -512,6 +528,29 @@ class CliTests(unittest.TestCase):
         self.assertIn("POST https://app.harness.io/v1/roles", output)
         self.assertIn("Content-Type: application/json", output)
         self.assertIn('"identifier": "example_role"', output)
+
+    def test_generated_call_can_dry_run_yaml_body_template(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(
+                [
+                    "api",
+                    "call",
+                    "getAccessControlList",
+                    "--body-template",
+                    "--content-type",
+                    "application/yaml",
+                    "--dry-run",
+                ]
+            )
+
+        output = stdout.getvalue()
+        self.assertEqual(status, 0)
+        self.assertIn("POST https://app.harness.io/authz/api/acl", output)
+        self.assertIn("Content-Type: application/yaml", output)
+        self.assertIn("permissions:\n", output)
+        self.assertIn("- permission: string", output)
 
     def test_table_columns_parse_for_table_output(self) -> None:
         manifest = load_manifest()

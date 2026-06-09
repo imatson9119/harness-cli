@@ -1264,13 +1264,15 @@ def request_body_template(
     is_json = _is_json_content_type(selected_content_type)
     if isinstance(sample, str):
         return selected_content_type, sample, is_json
-    if not is_json:
-        raise ValueError(
-            "--body-template can only serialize structured samples for JSON content types. "
-            f"Use `harness api body {operation.operation_id}` and pass the result with "
-            "--body instead."
-        )
-    return selected_content_type, json.dumps(sample, indent=2, sort_keys=True), True
+    if is_json:
+        return selected_content_type, json.dumps(sample, indent=2, sort_keys=True), True
+    if _is_yaml_content_type(selected_content_type):
+        return selected_content_type, body_template_text(selected_content_type, sample), False
+    raise ValueError(
+        "--body-template can only serialize structured samples for JSON or YAML content types. "
+        f"Use `harness api body {operation.operation_id}` and pass the result with "
+        "--body instead."
+    )
 
 
 def print_body_template(content_type: str, payload: Any) -> None:

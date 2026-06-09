@@ -161,8 +161,8 @@ harness api call create-role-acc --body-template --dry-run
 
 Use `--body-json` for inline JSON, `@file`, or `-` stdin when you want the CLI
 to validate the payload before sending it. Use `--body-template` to send the
-generated request-body sample for an operation; pair it with `--dry-run` first
-when exploring a new endpoint.
+generated JSON or YAML request-body sample for an operation; pair it with
+`--dry-run` first when exploring a new endpoint.
 
 Upload multipart files for file-oriented endpoints:
 
