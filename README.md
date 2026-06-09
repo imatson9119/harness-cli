@@ -186,10 +186,14 @@ Controls:
 NO_COLOR=1 harness api list
 HARNESS_COLOR=always harness api list
 HARNESS_ANIMATION=never harness account-roles list-roles-acc --limit 10
+HARNESS_STATUS=never harness account-roles list-roles-acc --limit 10
 HARNESS_TABLE_STYLE=unicode harness account-roles list-roles-acc --output table
 HARNESS_TABLE_STYLE=plain harness account-roles list-roles-acc --output table
 HARNESS_ASCII=1 harness account-roles list-roles-acc --limit 10
 ```
+
+Use `HARNESS_ANIMATION=never` to keep the final status line without live
+motion. Use `HARNESS_STATUS=never` when you want no call status on stderr.
 
 ## Useful Commands
 

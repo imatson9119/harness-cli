@@ -45,7 +45,8 @@ layout, table frames, JSON highlighting, status styling, and the stderr-only
 call spinner. Color follows `NO_COLOR`, `HARNESS_COLOR=always|never|auto`, and
 dumb-terminal detection. Table frames follow
 `HARNESS_TABLE_STYLE=auto|unicode|ascii|plain` with plain output for pipes.
-Animation follows `HARNESS_ANIMATION=always|never|auto`.
+Call status follows `HARNESS_STATUS=always|never|auto`, and animation follows
+`HARNESS_ANIMATION=always|never|auto`.
 
 ## Packaging
 

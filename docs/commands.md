@@ -197,11 +197,15 @@ for interactive terminals and are disabled for pipes and `TERM=dumb`.
 ```bash
 HARNESS_COLOR=always harness api list --search pipeline
 HARNESS_ANIMATION=never harness account-roles list-roles-acc --limit 10
+HARNESS_STATUS=never harness account-roles list-roles-acc --limit 10
 HARNESS_TABLE_STYLE=unicode harness account-roles list-roles-acc --output table
 HARNESS_TABLE_STYLE=ascii harness account-roles list-roles-acc --output table
 HARNESS_TABLE_STYLE=plain harness account-roles list-roles-acc --output table
 HARNESS_ASCII=1 harness account-roles list-roles-acc --limit 10
 ```
+
+`HARNESS_ANIMATION=never` keeps the final call status but removes live motion.
+`HARNESS_STATUS=never` hides call status entirely.
 
 ## Developer Formatting
 

@@ -206,6 +206,15 @@ def animation_enabled(stream: Any = sys.stderr) -> bool:
     return bool(getattr(stream, "isatty", lambda: False)()) and os.environ.get("TERM") != "dumb"
 
 
+def status_enabled(stream: Any = sys.stderr) -> bool:
+    value = os.environ.get("HARNESS_STATUS", "auto").lower()
+    if value in {"never", "0", "false", "no"}:
+        return False
+    if value in {"always", "1", "true", "yes"}:
+        return True
+    return bool(getattr(stream, "isatty", lambda: False)()) and os.environ.get("TERM") != "dumb"
+
+
 def unicode_enabled(stream: Any = sys.stderr) -> bool:
     if os.environ.get("HARNESS_ASCII"):
         return False
@@ -274,39 +283,42 @@ class CallStatus:
         self._start = 0.0
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
-        self._enabled = animation_enabled(sys.stderr)
+        self._status_enabled = status_enabled(sys.stderr)
+        self._animated = self._status_enabled and animation_enabled(sys.stderr)
 
     def __enter__(self) -> CallStatus:
         self._start = time.monotonic()
-        if self._enabled:
+        if self._animated:
             self._thread = threading.Thread(target=self._animate, daemon=True)
             self._thread.start()
         return self
 
     def __exit__(self, exc_type: Any, exc: Any, traceback: Any) -> None:
+        if not self._status_enabled:
+            return
         elapsed = time.monotonic() - self._start
-        if self._enabled:
+        if self._animated:
             self._stop.set()
             if self._thread:
                 self._thread.join(timeout=0.3)
             sys.stderr.write("\r\033[K")
-            if exc is not None:
-                print(
-                    f"{stylize(glyph('fail'), 'red', stream=sys.stderr)} "
-                    f"{self.label} failed after {elapsed:.1f}s",
-                    file=sys.stderr,
-                )
-                return
-            status = self.status or 0
-            ok = 200 <= status < 400
-            symbol = glyph("ok" if ok else "fail")
-            style = "green" if ok else "red"
+        if exc is not None:
             print(
-                f"{stylize(symbol, style, stream=sys.stderr)} "
-                f"{self.label} -> {format_http_status(status, stream=sys.stderr)} "
-                f"in {elapsed:.1f}s",
+                f"{stylize(glyph('fail'), 'red', stream=sys.stderr)} "
+                f"{self.label} failed after {elapsed:.1f}s",
                 file=sys.stderr,
             )
+            return
+        status = self.status or 0
+        ok = 200 <= status < 400
+        symbol = glyph("ok" if ok else "fail")
+        style = "green" if ok else "red"
+        print(
+            f"{stylize(symbol, style, stream=sys.stderr)} "
+            f"{self.label} -> {format_http_status(status, stream=sys.stderr)} "
+            f"in {elapsed:.1f}s",
+            file=sys.stderr,
+        )
 
     def done(self, status: int) -> None:
         self.status = status

@@ -7,6 +7,7 @@ from contextlib import redirect_stdout
 from unittest.mock import patch
 
 from harness_cli.render import (
+    CallStatus,
     colorize_json,
     format_http_status,
     print_data_table,
@@ -14,6 +15,13 @@ from harness_cli.render import (
     print_table,
     stylize,
 )
+
+
+class TtyStringIO(io.StringIO):
+    encoding = "utf-8"
+
+    def isatty(self) -> bool:
+        return True
 
 
 class RenderTests(unittest.TestCase):
@@ -25,6 +33,48 @@ class RenderTests(unittest.TestCase):
         with patch.dict(os.environ, {"HARNESS_COLOR": "always"}, clear=True):
             self.assertIn("\033[31m", stylize("red", "red"))
             self.assertIn("\033[32m", format_http_status(200))
+
+    def test_call_status_can_emit_final_line_without_animation(self) -> None:
+        stderr = TtyStringIO()
+
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "HARNESS_ANIMATION": "never",
+                    "HARNESS_COLOR": "never",
+                    "HARNESS_STATUS": "always",
+                },
+                clear=True,
+            ),
+            patch("harness_cli.render.sys.stderr", stderr),
+            CallStatus("GET", "https://app.harness.io/v1/roles?limit=1") as status,
+        ):
+            status.done(200)
+
+        output = stderr.getvalue()
+        self.assertIn("GET /v1/roles -> HTTP 200 OK in", output)
+        self.assertNotIn("...", output)
+
+    def test_call_status_can_be_disabled_even_if_animation_is_forced(self) -> None:
+        stderr = TtyStringIO()
+
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "HARNESS_ANIMATION": "always",
+                    "HARNESS_COLOR": "never",
+                    "HARNESS_STATUS": "never",
+                },
+                clear=True,
+            ),
+            patch("harness_cli.render.sys.stderr", stderr),
+            CallStatus("GET", "https://app.harness.io/v1/roles") as status,
+        ):
+            status.done(200)
+
+        self.assertEqual(stderr.getvalue(), "")
 
     def test_print_json_stays_plain_without_tty(self) -> None:
         stdout = io.StringIO()
