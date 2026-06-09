@@ -18,7 +18,7 @@ remove meaningful complexity and are worth the installation cost.
 Endpoint commands are generated from the official Harness API docs:
 
 ```bash
-python scripts/update_openapi_manifest.py
+uv run python scripts/update_openapi_manifest.py
 ```
 
 Commit generated changes together with the generator or runtime code that needs
@@ -33,13 +33,11 @@ Before opening a PR:
 uv run python -m unittest
 uv run python -m compileall -q src tests scripts
 uv run ruff check .
-```
-
-If type-checking dependencies are installed, also run:
-
-```bash
 uv run mypy src/harness_cli
 ```
+
+GitHub Actions runs the same checks through `uv sync --locked --all-extras --dev`
+on Python 3.10 through 3.13.
 
 Please keep changes focused. Small, well-documented slices are much easier to
 review than a giant mystery crate of enthusiasm.

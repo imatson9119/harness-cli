@@ -112,7 +112,7 @@ harness api groups
 Refresh the generated endpoint manifest from Harness API docs:
 
 ```bash
-python scripts/update_openapi_manifest.py
+uv run python scripts/update_openapi_manifest.py
 ```
 
 Run the standard library test suite:
@@ -126,6 +126,7 @@ Install development tooling and run checks:
 ```bash
 uv pip install -e ".[dev]"
 uv run ruff check .
+uv run mypy src/harness_cli
 uv run python -m compileall -q src tests scripts
 ```
 
