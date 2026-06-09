@@ -125,6 +125,9 @@ harness account-roles list-roles-acc --limit 10 --dry-run
 harness account-roles list-roles-acc --limit 10 --curl
 ```
 
+Preview output redacts `x-api-key`, `Authorization`, and common token/secret
+style headers so requests are easier to share safely.
+
 Send JSON request bodies from a file:
 
 ```bash

@@ -12,5 +12,10 @@ The CLI reads credentials in this order:
 `harness init` writes the config file with `0600` permissions. Prefer
 environment variables or a secret manager for CI.
 
-To report a security issue, contact the repository owner privately.
+`--dry-run` and `--curl` previews redact common credential headers such as
+`x-api-key`, `Authorization`, and token/secret/password-style header names.
+Review generated previews before posting them publicly because endpoint paths,
+query parameters, request bodies, and account identifiers may still contain
+private data.
 
+To report a security issue, contact the repository owner privately.

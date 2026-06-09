@@ -96,6 +96,8 @@ The request builder:
 - Provides `--dry-run` so users can inspect requests before sending them.
 - Provides `--curl` so users can inspect or share a redacted cURL command
   without sending the request.
+- Redacts credential-like headers in previews without changing the actual
+  request headers sent to Harness.
 
 ## Error Handling
 

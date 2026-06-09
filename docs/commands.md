@@ -153,6 +153,8 @@ parameters such as `page`/`limit`, `pageIndex`/`pageSize`,
 
 `--curl` prints a redacted cURL command and does not send the request. It is
 useful for sharing or debugging a prepared request without exposing API keys.
+Dry-run and cURL previews also redact `Authorization`, case variants of
+`x-api-key`, and common token/secret/password-style headers.
 
 `--account` and the active profile account are also used for endpoints that
 expect the `Harness-Account` header.

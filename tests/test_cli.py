@@ -226,6 +226,29 @@ class CliTests(unittest.TestCase):
         self.assertIn("x-api-key: harn...oken", output)
         self.assertNotIn("harness-secret-token", output)
 
+    def test_generated_dry_run_redacts_manual_secret_headers(self) -> None:
+        stdout = io.StringIO()
+
+        with patch.dict(os.environ, {}, clear=True), redirect_stdout(stdout):
+            status = main(
+                [
+                    "account-roles",
+                    "list-roles-acc",
+                    "--header",
+                    "Authorization=Bearer harness-secret-token",
+                    "--header",
+                    "X-API-Key=manual-secret-token",
+                    "--dry-run",
+                ]
+            )
+
+        output = stdout.getvalue()
+        self.assertEqual(status, 0)
+        self.assertIn("Authorization: Bear...oken", output)
+        self.assertIn("X-API-Key: manu...oken", output)
+        self.assertNotIn("harness-secret-token", output)
+        self.assertNotIn("manual-secret-token", output)
+
     def test_pagination_tuning_flags_require_all(self) -> None:
         manifest = load_manifest()
         operation = manifest.by_operation_id["list-roles-acc"]

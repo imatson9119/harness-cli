@@ -50,6 +50,27 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(request.headers["x-api-key"], "harness-secret-token")
         self.assertNotEqual(request.redacted_headers()["x-api-key"], "harness-secret-token")
 
+    def test_redacted_headers_mask_common_secret_header_names(self) -> None:
+        request = PreparedRequest(
+            "GET",
+            "https://app.harness.io/v1/roles",
+            {
+                "Authorization": "Bearer harness-secret-token",
+                "Content-Type": "application/json",
+                "X-API-Key": "manual-secret-token",
+                "X-Client-Token": "client-secret-token",
+            },
+            None,
+        )
+
+        headers = request.redacted_headers()
+
+        self.assertEqual(headers["Content-Type"], "application/json")
+        self.assertNotIn("harness-secret-token", headers["Authorization"])
+        self.assertNotIn("manual-secret-token", headers["X-API-Key"])
+        self.assertNotIn("client-secret-token", headers["X-Client-Token"])
+        self.assertIn("Bear...oken", headers["Authorization"])
+
     def test_prepare_request_requires_missing_path_parameters(self) -> None:
         manifest = load_manifest()
         operation = manifest.by_operation_id["get-role-acc"]

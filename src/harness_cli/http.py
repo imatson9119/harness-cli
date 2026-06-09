@@ -18,6 +18,14 @@ from .manifest import Operation, Parameter
 from .render import format_http_status, print_data_table, print_json, print_notice, stylize
 
 PATH_PARAM_RE = re.compile(r"\{([^}]+)\}")
+SENSITIVE_HEADER_NAMES = {
+    "authorization",
+    "api-key",
+    "apikey",
+    "x-api-key",
+    "xapikey",
+}
+SENSITIVE_HEADER_FRAGMENTS = ("credential", "password", "secret", "token")
 
 
 class RequestError(RuntimeError):
@@ -56,10 +64,10 @@ class PreparedRequest:
     body: bytes | None
 
     def redacted_headers(self) -> dict[str, str]:
-        redacted = dict(self.headers)
-        if "x-api-key" in redacted:
-            redacted["x-api-key"] = redact_secret(redacted["x-api-key"])
-        return redacted
+        return {
+            name: redact_secret(value) if _is_sensitive_header(name) else value
+            for name, value in self.headers.items()
+        }
 
 
 @dataclass(frozen=True)
@@ -316,6 +324,14 @@ def _header_values(
 
 def _parameters_in(operation: Operation, location: str) -> list[Parameter]:
     return [parameter for parameter in operation.parameters if parameter.location == location]
+
+
+def _is_sensitive_header(name: str) -> bool:
+    normalized = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    compact = re.sub(r"[^a-z0-9]+", "", name.lower())
+    if normalized in SENSITIVE_HEADER_NAMES or compact in SENSITIVE_HEADER_NAMES:
+        return True
+    return any(fragment in compact for fragment in SENSITIVE_HEADER_FRAGMENTS)
 
 
 def pagination_plan(operation: Operation) -> PaginationPlan | None:
