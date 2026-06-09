@@ -156,20 +156,26 @@ Useful call flags:
 - `--query key=value`
 - `--header key=value`
 - `--param key=value`
-- `--body @file.json`
-- `--body -`
+- `--body VALUE|@file|-`
+- `--body-file path`
+- `--body-json JSON`
 - `--body-template`
 - `--form key=value`
 - `--file field=@path`
+- `--content-type value`
+- `--columns a,b,c`
+- `--output json|raw|table`
 - `--output-file path`
-- `--columns identifier,name,metadata.status`
 - `--all`
 - `--all-page-size 100`
 - `--max-pages 50`
 - `--curl`
 - `--dry-run`
 - `--include`
-- `--output json|raw|table`
+- `--timeout seconds`
+- `--host http(s)-url`
+- `--api-key KEY`
+- `--no-auth`
 
 Add `--help` anywhere after an operation name to print that operation's
 parameters, examples, body-template hint, pagination support, and generic call

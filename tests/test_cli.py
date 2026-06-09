@@ -390,6 +390,39 @@ class CliTests(unittest.TestCase):
         self.assertIn("--columns a,b,c", output)
         self.assertIn("--body-template", output)
 
+    def test_command_reference_documents_generic_call_flags(self) -> None:
+        docs = (Path(__file__).resolve().parents[1] / "docs" / "commands.md").read_text(
+            encoding="utf-8"
+        )
+
+        for flag in [
+            "--path key=value",
+            "--query key=value",
+            "--header key=value",
+            "--param key=value",
+            "--body VALUE|@file|-",
+            "--body-file path",
+            "--body-json JSON",
+            "--body-template",
+            "--form key=value",
+            "--file field=@path",
+            "--content-type value",
+            "--columns a,b,c",
+            "--output json|raw|table",
+            "--output-file path",
+            "--all",
+            "--all-page-size 100",
+            "--max-pages 50",
+            "--curl",
+            "--dry-run",
+            "--include",
+            "--timeout seconds",
+            "--host http(s)-url",
+            "--api-key KEY",
+            "--no-auth",
+        ]:
+            self.assertIn(flag, docs)
+
     def test_api_call_operation_help_works_after_flags(self) -> None:
         stdout = io.StringIO()
 
