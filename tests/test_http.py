@@ -531,6 +531,71 @@ class HttpTests(unittest.TestCase):
         self.assertNotIn("ignored", output)
         self.assertNotIn("noise", output)
 
+    def test_render_response_can_unwrap_harness_envelope(self) -> None:
+        stdout = io.StringIO()
+
+        with contextlib.redirect_stdout(stdout):
+            render_response(
+                Response(
+                    status=200,
+                    headers={},
+                    body=(
+                        b'{"status":"SUCCESS","correlationId":"corr",'
+                        b'"data":{"identifier":"svc","name":"Service"}}'
+                    ),
+                ),
+                include=False,
+                output="json",
+                unwrap_response=True,
+            )
+
+        data = json.loads(stdout.getvalue())
+        self.assertEqual(data, {"identifier": "svc", "name": "Service"})
+
+    def test_render_response_can_select_jq_style_path(self) -> None:
+        stdout = io.StringIO()
+
+        with contextlib.redirect_stdout(stdout):
+            render_response(
+                Response(
+                    status=200,
+                    headers={},
+                    body=(
+                        b'{"status":"SUCCESS","data":{"content":['
+                        b'{"name":"First"},{"name":"Second"}]}}'
+                    ),
+                ),
+                include=False,
+                output="json",
+                jq_path="data.content[].name",
+            )
+
+        self.assertEqual(json.loads(stdout.getvalue()), ["First", "Second"])
+
+    def test_render_response_can_table_selected_jq_path(self) -> None:
+        stdout = io.StringIO()
+
+        with contextlib.redirect_stdout(stdout):
+            render_response(
+                Response(
+                    status=200,
+                    headers={},
+                    body=(
+                        b'{"status":"SUCCESS","data":{"content":['
+                        b'{"name":"First","status":"active"},'
+                        b'{"name":"Second","status":"paused"}]}}'
+                    ),
+                ),
+                include=False,
+                output="table",
+                jq_path="data.content[]",
+                table_columns=("name", "status"),
+            )
+
+        output = stdout.getvalue()
+        self.assertIn("First", output)
+        self.assertIn("paused", output)
+
     def test_render_curl_redacts_api_key_and_includes_body(self) -> None:
         stdout = io.StringIO()
 

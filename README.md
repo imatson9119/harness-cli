@@ -162,7 +162,15 @@ Render JSON list responses as a table when you want a compact human view:
 ```bash
 hctl account-roles list-roles-acc --limit 10 --output table
 hctl account-roles list-roles-acc --limit 10 --output table --columns identifier,name,createdAt
+hctl pipeline list-pipelines --output table --columns data.content[].identifier,data.content[].name
+hctl pipeline list-pipelines --unwrap --jq content[] --output table --columns identifier,name
 ```
+
+`--unwrap` removes Harness envelopes shaped like `{status, data, correlationId}`.
+`--jq path` applies a small built-in jq-style selector with dotted fields and
+`[]` array unwrapping. Table columns use the same path language, so nested
+Harness payloads such as `data.content[].name` work without piping through an
+external tool.
 
 Fetch paginated list endpoints until they are exhausted:
 

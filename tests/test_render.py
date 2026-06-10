@@ -110,6 +110,29 @@ class RenderTests(unittest.TestCase):
         self.assertIn("one", output)
         self.assertIn("Second", output)
 
+    def test_print_data_table_unwraps_harness_data_content_payloads(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            print_data_table(
+                {
+                    "status": "SUCCESS",
+                    "correlationId": "corr",
+                    "data": {
+                        "content": [
+                            {"identifier": "pipe-one", "name": "First"},
+                            {"identifier": "pipe-two", "name": "Second"},
+                        ]
+                    },
+                }
+            )
+
+        output = stdout.getvalue()
+        self.assertIn("identifier", output)
+        self.assertIn("pipe-one", output)
+        self.assertIn("Second", output)
+        self.assertNotIn("correlationId", output)
+
     def test_print_table_stays_plain_without_tty(self) -> None:
         stdout = io.StringIO()
 
@@ -208,6 +231,32 @@ class RenderTests(unittest.TestCase):
         self.assertIn("paused", output)
         self.assertNotIn("ignored", output)
         self.assertNotIn("noise", output)
+
+    def test_print_data_table_expands_array_columns_from_root(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            print_data_table(
+                {
+                    "status": "SUCCESS",
+                    "correlationId": "corr",
+                    "data": {
+                        "content": [
+                            {"name": "First", "metadata": {"status": "active"}},
+                            {"name": "Second", "metadata": {"status": "paused"}},
+                        ]
+                    },
+                },
+                columns=["status", "data.content[].name", "data.content[].metadata.status"],
+            )
+
+        output = stdout.getvalue()
+        self.assertIn("data.content[].name", output)
+        self.assertIn("First", output)
+        self.assertIn("Second", output)
+        self.assertIn("active", output)
+        self.assertIn("paused", output)
+        self.assertEqual(output.count("SUCCESS"), 2)
 
     def test_print_data_table_renders_objects_as_key_value_rows(self) -> None:
         stdout = io.StringIO()

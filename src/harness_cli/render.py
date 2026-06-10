@@ -41,6 +41,13 @@ PREFERRED_TABLE_COLUMNS = (
     "createdAt",
     "updatedAt",
 )
+_MISSING = object()
+
+
+@dataclass(frozen=True)
+class JsonPathPart:
+    key: str
+    unwrap: bool = False
 
 
 @dataclass(frozen=True)
@@ -151,6 +158,15 @@ def print_table(
 
 
 def print_data_table(data: Any, *, columns: Sequence[str] | None = None) -> None:
+    if columns and any(_path_has_unwrap(column) for column in columns):
+        selected = list(columns)
+        rows = _rows_from_column_paths(data, selected)
+        if not rows:
+            print("No results.")
+            return
+        print_table(selected, rows)
+        return
+
     records = _records_from_data(data)
     if isinstance(records, dict):
         if columns:
@@ -250,6 +266,18 @@ def glyph(name: str, *, stream: Any = sys.stderr) -> str:
     if not unicode_enabled(stream):
         return {"ok": "+", "fail": "x", "wait": "*"}.get(name, "*")
     return {"ok": "\u2713", "fail": "\u2717", "wait": "\u25d2"}.get(name, "\u25d2")
+
+
+def unwrap_harness_response(data: Any) -> Any:
+    if not isinstance(data, dict) or "data" not in data:
+        return data
+    if {"status", "correlationId", "correlation_id"} & set(data):
+        return data["data"]
+    return data
+
+
+def select_json_path(data: Any, path: str) -> Any:
+    return _select_path_parts(data, _parse_json_path(path))
 
 
 def colorize_json(payload: str) -> str:
@@ -408,6 +436,7 @@ def _request_label(method: str, url: str) -> str:
 
 
 def _records_from_data(data: Any) -> list[Any] | dict[str, Any]:
+    data = unwrap_harness_response(data)
     if isinstance(data, list):
         return data
     if isinstance(data, dict):
@@ -415,6 +444,10 @@ def _records_from_data(data: Any) -> list[Any] | dict[str, Any]:
             value = data.get(key)
             if isinstance(value, list):
                 return value
+            if isinstance(value, dict):
+                nested = _records_from_data(value)
+                if isinstance(nested, list):
+                    return nested
         for value in data.values():
             if isinstance(value, list):
                 return value
@@ -447,12 +480,94 @@ def _table_columns(records: Sequence[dict[str, Any]]) -> list[str]:
 def _record_value(record: dict[str, Any], column: str) -> Any:
     if column in record:
         return record[column]
-    current: Any = record
-    for part in column.split("."):
-        if not isinstance(current, dict) or part not in current:
-            return None
-        current = current[part]
-    return current
+    return select_json_path(record, column)
+
+
+def _path_has_unwrap(path: str) -> bool:
+    return any(part.unwrap for part in _parse_json_path(path))
+
+
+def _rows_from_column_paths(data: Any, columns: Sequence[str]) -> list[list[str]]:
+    values = [_column_values(data, column) for column in columns]
+    row_count = max((len(value) if unwrap else 1 for value, unwrap in values), default=0)
+    if row_count == 0:
+        return []
+    rows: list[list[str]] = []
+    for index in range(row_count):
+        row: list[str] = []
+        for value, unwrap in values:
+            cell = (value[index] if index < len(value) else None) if unwrap else value
+            row.append(_cell_value(cell))
+        rows.append(row)
+    return rows
+
+
+def _column_values(data: Any, column: str) -> tuple[Any, bool]:
+    parts = _parse_json_path(column)
+    unwrap = any(part.unwrap for part in parts)
+    value = _select_path_parts(data, parts)
+    if not unwrap:
+        return value, False
+    if value is None:
+        return [], True
+    if isinstance(value, list):
+        return value, True
+    return [value], True
+
+
+def _parse_json_path(path: str) -> tuple[JsonPathPart, ...]:
+    normalized = path.strip()
+    if normalized in {"", "."}:
+        return ()
+    if normalized.startswith("."):
+        normalized = normalized[1:]
+    parts: list[JsonPathPart] = []
+    for raw_part in normalized.split("."):
+        if not raw_part:
+            raise ValueError(f"Invalid JSON path {path!r}: empty segment")
+        unwrap = raw_part.endswith("[]")
+        key = raw_part[:-2] if unwrap else raw_part
+        if not key and raw_part != "[]":
+            raise ValueError(f"Invalid JSON path {path!r}: empty segment")
+        parts.append(JsonPathPart(key=key, unwrap=unwrap))
+    return tuple(parts)
+
+
+def _select_path_parts(data: Any, parts: Sequence[JsonPathPart]) -> Any:
+    values = [data]
+    saw_unwrap = False
+    for part in parts:
+        next_values: list[Any] = []
+        for value in values:
+            selected = _child_value(value, part.key)
+            if selected is _MISSING:
+                continue
+            if part.unwrap:
+                saw_unwrap = True
+                if isinstance(selected, list):
+                    next_values.extend(selected)
+                elif selected is not None:
+                    next_values.append(selected)
+            else:
+                next_values.append(selected)
+        values = next_values
+    if not values:
+        return None
+    if len(values) == 1 and not saw_unwrap:
+        return values[0]
+    return values
+
+
+def _child_value(value: Any, key: str) -> Any:
+    if key == "":
+        return value
+    if isinstance(value, dict):
+        return value.get(key, _MISSING)
+    if isinstance(value, list) and key.isdigit():
+        index = int(key)
+        if 0 <= index < len(value):
+            return value[index]
+    return _MISSING
 
 
 def _cell_value(value: Any) -> str:

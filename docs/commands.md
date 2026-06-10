@@ -137,8 +137,11 @@ hctl api call list-roles-acc --query limit=10 --help
 hctl api call list-roles-acc --query limit=10
 hctl account-roles list-roles-acc --limit 10
 hctl account-roles list-roles-acc --limit 10 --help
+hctl list-roles-acc --limit 10
 hctl account-roles list-roles-acc --limit 10 --output table
 hctl account-roles list-roles-acc --limit 10 --output table --columns identifier,name,createdAt
+hctl pipeline list-pipelines --output table --columns data.content[].identifier,data.content[].name
+hctl pipeline list-pipelines --unwrap --jq content[] --output table --columns identifier,name
 hctl account-roles list-roles-acc --all --all-page-size 100 --output table
 hctl account-roles list-roles-acc --limit 10 --curl
 hctl account-roles get-role-acc --role my-role
@@ -164,6 +167,8 @@ Useful call flags:
 - `--file field=@path`
 - `--content-type value`
 - `--columns a,b,c`
+- `--unwrap`
+- `--jq path`
 - `--output json|raw|table`
 - `--output-file path`
 - `--all`
@@ -182,7 +187,24 @@ parameters, examples, body-template hint, pagination support, and generic call
 flags without sending a request.
 
 Use `--columns` with `--output table` to choose table columns in order. Dotted
-names such as `metadata.status` read nested object fields.
+names such as `metadata.status` read nested object fields. Add `[]` to unwrap
+arrays inside a path, for example `data.content[].name`. When any selected
+column unwraps an array, hctl expands the table to one row per array item and
+repeats scalar columns such as `status`.
+
+`--unwrap` removes the standard Harness response envelope and prints only
+`data` from responses shaped like `{status, data, correlationId}`. `--jq path`
+selects a small jq-style dot path after optional unwrapping; it supports nested
+fields, numeric list indexes, and `[]` array unwrapping. For example:
+
+```bash
+hctl pipeline get-pipeline --org my-org --project my-project --pipeline my-pipeline --unwrap
+hctl pipeline list-pipelines --unwrap --jq content[] --output table --columns identifier,name
+hctl pipeline list-pipelines --jq data.content[].name
+```
+
+`--jq` is intentionally a dependency-free selector, not a full jq expression
+engine.
 
 `--body-json` accepts inline JSON, `@file`, or `-` stdin, validates the payload
 before sending it, and defaults the content type to `application/json`.
@@ -218,6 +240,11 @@ Dry-run and cURL previews also redact `Authorization`, case variants of
 expect the `Harness-Account` header. Profile account, org, and project values
 also fill common generated parameter spellings, including camel-case, ID-style,
 and snake-case Harness scope identifiers.
+
+Unique operation slugs can be called directly, so `hctl list-roles-acc` is a
+shortcut for `hctl api call list-roles-acc`. If a slug is ambiguous, interactive
+terminals show a numbered picker; scripts receive a numbered list of exact
+`group/operation` names to use.
 
 ## Shell Completion
 

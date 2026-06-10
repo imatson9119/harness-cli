@@ -15,7 +15,15 @@ from typing import Any
 
 from .config import HarnessConfig, redact_secret, validate_host_url
 from .manifest import Operation, Parameter
-from .render import format_http_status, print_data_table, print_json, print_notice, stylize
+from .render import (
+    format_http_status,
+    print_data_table,
+    print_json,
+    print_notice,
+    select_json_path,
+    stylize,
+    unwrap_harness_response,
+)
 
 PATH_PARAM_RE = re.compile(r"\{([^}]+)\}")
 SENSITIVE_HEADER_NAMES = {
@@ -73,6 +81,8 @@ class CallOptions:
     output: str = "json"
     output_file: str | None = None
     table_columns: tuple[str, ...] = ()
+    unwrap_response: bool = False
+    jq_path: str | None = None
     all_pages: bool = False
     all_page_size: int | None = None
     max_pages: int = 100
@@ -229,18 +239,21 @@ def render_response(
     output: str,
     output_file: str | None = None,
     table_columns: tuple[str, ...] = (),
+    unwrap_response: bool = False,
+    jq_path: str | None = None,
 ) -> None:
+    should_shape = unwrap_response or jq_path is not None
     if include:
         print(format_http_status(response.status))
         for key, value in sorted(response.headers.items()):
             print(f"{stylize(key, 'cyan')}: {value}")
         print()
-    if output_file:
+    if output_file and not should_shape:
         _write_output_file(output_file, response.body)
         return
     if not response.body:
         return
-    if output == "raw":
+    if output == "raw" and not should_shape:
         sys.stdout.buffer.write(response.body)
         if not response.body.endswith(b"\n"):
             sys.stdout.write("\n")
@@ -250,6 +263,20 @@ def render_response(
     except (UnicodeDecodeError, json.JSONDecodeError):
         sys.stdout.buffer.write(response.body)
         if not response.body.endswith(b"\n"):
+            sys.stdout.write("\n")
+        return
+    if unwrap_response:
+        parsed = unwrap_harness_response(parsed)
+    if jq_path is not None:
+        parsed = select_json_path(parsed, jq_path)
+    if output_file:
+        _write_output_file(
+            output_file, _raw_value_bytes(parsed) if output == "raw" else _json_bytes(parsed)
+        )
+        return
+    if output == "raw":
+        sys.stdout.buffer.write(_raw_value_bytes(parsed))
+        if parsed not in (None, ""):
             sys.stdout.write("\n")
         return
     if output == "table":
@@ -686,6 +713,18 @@ def _write_output_file(output_file: str, body: bytes) -> None:
         detail = exc.strerror or str(exc)
         raise ValueError(f"Could not write output file {path}: {detail}") from exc
     print_notice(f"Wrote {path} ({len(body)} bytes)")
+
+
+def _json_bytes(data: Any) -> bytes:
+    return (json.dumps(data, indent=2, sort_keys=True) + "\n").encode("utf-8")
+
+
+def _raw_value_bytes(data: Any) -> bytes:
+    if data is None:
+        return b""
+    if isinstance(data, str):
+        return data.encode("utf-8")
+    return json.dumps(data, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
 
 def _quote_header(value: str) -> str:

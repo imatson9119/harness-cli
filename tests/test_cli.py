@@ -16,6 +16,13 @@ from harness_cli.http import RequestError, Response
 from harness_cli.manifest import load_manifest
 
 
+class TtyStringIO(io.StringIO):
+    encoding = "utf-8"
+
+    def isatty(self) -> bool:
+        return True
+
+
 class CliTests(unittest.TestCase):
     def test_api_list_search_prints_operation(self) -> None:
         stdout = io.StringIO()
@@ -408,6 +415,8 @@ class CliTests(unittest.TestCase):
             "--file field=@path",
             "--content-type value",
             "--columns a,b,c",
+            "--unwrap",
+            "--jq path",
             "--output json|raw|table",
             "--output-file path",
             "--all",
@@ -669,6 +678,20 @@ class CliTests(unittest.TestCase):
         self.assertEqual(options.output, "table")
         self.assertEqual(options.table_columns, ("identifier", "name", "createdAt"))
 
+    def test_response_selection_flags_parse_for_calls(self) -> None:
+        manifest = load_manifest()
+        operation = manifest.by_operation_id["list-roles-acc"]
+
+        options = parse_call_options(
+            operation,
+            ["--unwrap", "--jq", "content[]", "--output", "table"],
+            HarnessConfig(),
+        )
+
+        self.assertTrue(options.unwrap_response)
+        self.assertEqual(options.jq_path, "content[]")
+        self.assertEqual(options.output, "table")
+
     def test_table_columns_require_table_output(self) -> None:
         manifest = load_manifest()
         operation = manifest.by_operation_id["list-roles-acc"]
@@ -686,6 +709,64 @@ class CliTests(unittest.TestCase):
         self.assertEqual(status, 0)
         self.assertIn("curl -X GET", output)
         self.assertIn("https://app.harness.io/v1/roles?limit=1", output)
+
+    def test_unique_operation_slug_can_be_called_directly(self) -> None:
+        stdout = io.StringIO()
+
+        with patch.dict(os.environ, {}, clear=True), redirect_stdout(stdout):
+            status = main(["list-roles-acc", "--limit", "1", "--curl"])
+
+        output = stdout.getvalue()
+        self.assertEqual(status, 0)
+        self.assertIn("curl -X GET", output)
+        self.assertIn("https://app.harness.io/v1/roles?limit=1", output)
+
+    def test_ambiguous_operation_prints_numbered_choices_noninteractive(self) -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+
+        with (
+            redirect_stdout(stdout),
+            contextlib.redirect_stderr(stderr),
+            patch.dict(os.environ, {}, clear=True),
+        ):
+            status = main(["api", "call", "get-pipeline", "--curl"])
+
+        self.assertEqual(status, 2)
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertIn("Ambiguous operation 'get-pipeline'", stderr.getvalue())
+        self.assertIn("1. pipelines/get-pipeline", stderr.getvalue())
+        self.assertIn("2. pipeline/get-pipeline", stderr.getvalue())
+
+    def test_ambiguous_operation_can_be_selected_interactively(self) -> None:
+        stdout = io.StringIO()
+        stderr = TtyStringIO()
+        stdin = TtyStringIO("1\n")
+
+        with (
+            redirect_stdout(stdout),
+            patch("harness_cli.cli.sys.stdin", stdin),
+            patch("harness_cli.cli.sys.stderr", stderr),
+            patch.dict(os.environ, {}, clear=True),
+        ):
+            status = main(
+                [
+                    "api",
+                    "call",
+                    "get-pipeline",
+                    "--org",
+                    "org",
+                    "--project",
+                    "proj",
+                    "--pipeline",
+                    "pipe",
+                    "--curl",
+                ]
+            )
+
+        self.assertEqual(status, 0)
+        self.assertIn("Ambiguous operation 'get-pipeline'", stderr.getvalue())
+        self.assertIn("/v1/orgs/org/projects/proj/pipelines/pipe", stdout.getvalue())
 
     def test_generated_call_rejects_invalid_host_override(self) -> None:
         stdout = io.StringIO()
@@ -907,6 +988,15 @@ class CliTests(unittest.TestCase):
         self.assertEqual(status, 0)
         self.assertIn("account-roles\n", stdout.getvalue())
 
+    def test_completion_lists_matching_top_level_operation_shortcuts(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(["__complete", "--current", "list-roles", "--"])
+
+        self.assertEqual(status, 0)
+        self.assertIn("list-roles-acc\n", stdout.getvalue())
+
     def test_completion_lists_group_operations(self) -> None:
         stdout = io.StringIO()
 
@@ -939,6 +1029,15 @@ class CliTests(unittest.TestCase):
                     "list-roles-acc",
                 ]
             )
+
+        self.assertEqual(status, 0)
+        self.assertIn("--limit\n", stdout.getvalue())
+
+    def test_completion_lists_direct_operation_flags(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(["__complete", "--current", "--lim", "--", "list-roles-acc"])
 
         self.assertEqual(status, 0)
         self.assertIn("--limit\n", stdout.getvalue())

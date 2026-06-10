@@ -60,6 +60,7 @@ GENERIC_CALL_FLAGS = (
     "--file",
     "--content-type",
     "--columns",
+    "--jq",
     "--output",
     "--output-file",
     "--all",
@@ -71,6 +72,7 @@ GENERIC_CALL_FLAGS = (
     "--curl",
     "--dry-run",
     "--include",
+    "--unwrap",
     "--no-auth",
     "--help",
 )
@@ -100,12 +102,21 @@ CALL_VALUE_FLAGS = {
     "--file",
     "--form",
     "--host",
+    "--jq",
     "--max-pages",
     "--output",
     "--output-file",
     "--timeout",
 }
-CALL_BOOLEAN_FLAGS = {"--all", "--body-template", "--curl", "--dry-run", "--include", "--no-auth"}
+CALL_BOOLEAN_FLAGS = {
+    "--all",
+    "--body-template",
+    "--curl",
+    "--dry-run",
+    "--include",
+    "--no-auth",
+    "--unwrap",
+}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -807,6 +818,12 @@ def command_api_call(manifest: Manifest, argv: list[str]) -> int:
 def command_generated(manifest: Manifest, argv: list[str]) -> int:
     group = argv[0]
     if group not in manifest.groups:
+        if manifest.find_operation_matches(group):
+            selected_operation = resolve_operation(manifest, group)
+            if call_help_requested(argv[1:]):
+                print_operation_help(selected_operation)
+                return 0
+            return call_operation(selected_operation, argv[1:])
         suggestions = difflib.get_close_matches(group, sorted(manifest.groups), n=5)
         hint = f" Did you mean: {', '.join(suggestions)}?" if suggestions else ""
         raise ValueError(f"Unknown command or generated group: {group}.{hint}")
@@ -871,6 +888,8 @@ def call_operation(operation: Operation, argv: list[str]) -> int:
         output=options.output,
         output_file=options.output_file,
         table_columns=options.table_columns,
+        unwrap_response=options.unwrap_response,
+        jq_path=options.jq_path,
     )
     return 0 if response.status < 400 else 1
 
@@ -893,6 +912,8 @@ def parse_call_options(operation: Operation, argv: list[str], config: HarnessCon
     output = config.default_output
     output_file: str | None = None
     table_columns: list[str] = []
+    unwrap_response = False
+    jq_path: str | None = None
     all_pages = False
     all_page_size: int | None = None
     max_pages = 100
@@ -970,6 +991,11 @@ def parse_call_options(operation: Operation, argv: list[str], config: HarnessCon
         elif token == "--columns":
             value, index = _consume_value(argv, index)
             table_columns.extend(_split_columns(value))
+        elif token == "--unwrap":
+            unwrap_response = True
+            index += 1
+        elif token == "--jq":
+            jq_path, index = _consume_value(argv, index)
         elif token == "--output":
             output, index = _consume_value(argv, index)
             if output not in {"json", "raw", "table"}:
@@ -1042,6 +1068,8 @@ def parse_call_options(operation: Operation, argv: list[str], config: HarnessCon
         output=output,
         output_file=output_file,
         table_columns=tuple(table_columns),
+        unwrap_response=unwrap_response,
+        jq_path=jq_path,
         all_pages=all_pages,
         all_page_size=all_page_size,
         max_pages=max_pages,
@@ -1056,13 +1084,67 @@ def resolve_operation(manifest: Manifest, value: str) -> Operation:
     if len(matches) == 1:
         return matches[0]
     if len(matches) > 1:
-        choices = ", ".join(f"{match.group}/{match.command}" for match in matches[:10])
-        raise ValueError(f"Ambiguous operation {value}. Use one of: {choices}")
+        if _interactive_operation_selection_enabled():
+            return _prompt_for_operation(value, matches)
+        raise ValueError(_ambiguous_operation_message(value, matches))
     suggestions = difflib.get_close_matches(value, sorted(manifest.by_operation_id), n=5)
     if not suggestions:
         suggestions = difflib.get_close_matches(value, sorted(manifest.by_command), n=5)
     hint = f" Did you mean: {', '.join(suggestions)}?" if suggestions else ""
     raise ValueError(f"Unknown operation: {value}.{hint}")
+
+
+def _interactive_operation_selection_enabled() -> bool:
+    return (
+        bool(getattr(sys.stdin, "isatty", lambda: False)())
+        and bool(getattr(sys.stderr, "isatty", lambda: False)())
+        and os.environ.get("CI") is None
+    )
+
+
+def _prompt_for_operation(value: str, matches: list[Operation]) -> Operation:
+    limit = min(len(matches), 20)
+    print(f"Ambiguous operation {value!r}. Choose one:", file=sys.stderr)
+    for index, operation in enumerate(matches[:limit], start=1):
+        print(f"  {_operation_choice_line(index, operation)}", file=sys.stderr)
+    if len(matches) > limit:
+        print(
+            f"  ... {len(matches) - limit} more; use `hctl api list --search {value}`.",
+            file=sys.stderr,
+        )
+    while True:
+        sys.stderr.write(f"Select operation [1-{limit}] (or q to cancel): ")
+        sys.stderr.flush()
+        choice = sys.stdin.readline()
+        if not choice:
+            raise ValueError(_ambiguous_operation_message(value, matches))
+        normalized = choice.strip().lower()
+        if normalized in {"", "q", "quit", "cancel"}:
+            raise ValueError("Cancelled operation selection.")
+        if normalized.isdigit():
+            selected = int(normalized)
+            if 1 <= selected <= limit:
+                return matches[selected - 1]
+        print(f"Enter a number from 1 to {limit}, or q to cancel.", file=sys.stderr)
+
+
+def _ambiguous_operation_message(value: str, matches: list[Operation]) -> str:
+    lines = [f"Ambiguous operation {value!r}. Use a fully-qualified operation:"]
+    lines.extend(
+        f"  {_operation_choice_line(index, operation)}"
+        for index, operation in enumerate(matches[:10], start=1)
+    )
+    if len(matches) > 10:
+        lines.append(f"  ... {len(matches) - 10} more. Run `hctl api list --search {value}`.")
+    return "\n".join(lines)
+
+
+def _operation_choice_line(index: int, operation: Operation) -> str:
+    summary = f" - {operation.summary}" if operation.summary else ""
+    return (
+        f"{index}. {operation.group}/{operation.command} "
+        f"({operation.operation_id}) {operation.method.upper()} {operation.path}{summary}"
+    )
 
 
 def print_group_help(manifest: Manifest, group: str) -> None:
@@ -1157,6 +1239,8 @@ def print_call_flags_help() -> None:
         "--file field=@path",
         "--content-type value",
         "--columns a,b,c",
+        "--unwrap",
+        "--jq path",
         "--output json|raw|table",
         "--output-file path",
         "--all",
@@ -1487,7 +1571,10 @@ def completion_candidates(manifest: Manifest, words: list[str], current: str) ->
         return _filter_candidates(sorted(manifest.groups), current)
 
     if not words:
-        return _filter_candidates(_top_level_completion_candidates(manifest), current)
+        candidates = _top_level_completion_candidates(manifest)
+        if current:
+            candidates.extend(_operation_completion_candidates(manifest))
+        return _filter_candidates(candidates, current)
 
     command = words[0]
     if command == "completion":
@@ -1522,6 +1609,11 @@ def completion_candidates(manifest: Manifest, words: list[str], current: str) ->
         return _api_completion_candidates(manifest, words[1:], current)
     if command in manifest.groups:
         return _generated_completion_candidates(manifest, command, words[1:], current)
+    operation = manifest.find_operation(command)
+    if operation:
+        if words[-1] == "--content-type" and operation.request_body:
+            return _filter_candidates(list(operation.request_body.content_types), current)
+        return _operation_flag_completion_candidates(operation, current)
     return []
 
 
