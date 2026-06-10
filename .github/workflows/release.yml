@@ -1,0 +1,94 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  release:
+    name: Build and publish
+    runs-on: ubuntu-latest
+    environment: pypi
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          python-version: "3.13"
+          version: "0.6.11"
+
+      - name: Install project
+        run: uv sync --locked --all-extras --dev
+
+      - name: Format
+        run: uv run --frozen ruff format --check .
+
+      - name: Lint
+        run: uv run --frozen ruff check .
+
+      - name: Type check
+        run: uv run --frozen mypy src/harness_cli
+
+      - name: Test
+        run: uv run --frozen python -m unittest
+
+      - name: Validate endpoint manifest
+        run: uv run --frozen python scripts/validate_openapi_manifest.py
+
+      - name: Compile
+        run: uv run --frozen python -m compileall -q src tests scripts
+
+      - name: Build package
+        run: uv build --sdist --wheel --out-dir dist/python
+
+      - name: Build standalone zipapp
+        run: uv run --frozen python scripts/build_standalone.py --output dist/release/hctl.pyz
+
+      - name: Render Homebrew formula
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          artifact_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/hctl.pyz"
+          sha256="$(sha256sum dist/release/hctl.pyz | awk '{print $1}')"
+          uv run --frozen python scripts/render_homebrew_formula.py \
+            --version "$version" \
+            --url "$artifact_url" \
+            --sha256 "$sha256" \
+            --output dist/release/hctl.rb
+
+      - name: Write checksums
+        run: |
+          cp dist/python/* dist/release/
+          cd dist/release
+          sha256sum * > checksums.txt
+
+      - name: Smoke wheel
+        run: |
+          uv venv .package-smoke
+          uv pip install --python .package-smoke/bin/python dist/python/*.whl
+          .package-smoke/bin/hctl --version
+          .package-smoke/bin/hctl api info
+
+      - name: Smoke standalone zipapp
+        run: |
+          dist/release/hctl.pyz --version
+          dist/release/hctl.pyz api info
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/release/* --generate-notes
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/python

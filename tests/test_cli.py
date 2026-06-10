@@ -369,7 +369,7 @@ class CliTests(unittest.TestCase):
         output = stdout.getvalue()
         self.assertEqual(status, 0)
         self.assertIn("Usage:", output)
-        self.assertIn("harness api call OPERATION [flags]", output)
+        self.assertIn("hctl api call OPERATION [flags]", output)
         self.assertIn("--content-type value", output)
         self.assertIn("--timeout seconds", output)
         self.assertIn("--no-auth", output)
@@ -382,8 +382,8 @@ class CliTests(unittest.TestCase):
 
         output = stdout.getvalue()
         self.assertEqual(status, 0)
-        self.assertIn("Usage: harness account-roles list-roles-acc [flags]", output)
-        self.assertIn("harness api call list-roles-acc [flags]", output)
+        self.assertIn("Usage: hctl account-roles list-roles-acc [flags]", output)
+        self.assertIn("hctl api call list-roles-acc [flags]", output)
         self.assertIn("Pagination: Supports --all", output)
         self.assertIn("--output json|raw|table", output)
         self.assertIn("--api-key KEY", output)
@@ -431,7 +431,7 @@ class CliTests(unittest.TestCase):
 
         output = stdout.getvalue()
         self.assertEqual(status, 0)
-        self.assertIn("Usage: harness account-roles list-roles-acc [flags]", output)
+        self.assertIn("Usage: hctl account-roles list-roles-acc [flags]", output)
         self.assertIn("Pagination: Supports --all", output)
 
     def test_generated_operation_help_works_after_flags(self) -> None:
@@ -442,7 +442,7 @@ class CliTests(unittest.TestCase):
 
         output = stdout.getvalue()
         self.assertEqual(status, 0)
-        self.assertIn("Usage: harness account-roles list-roles-acc [flags]", output)
+        self.assertIn("Usage: hctl account-roles list-roles-acc [flags]", output)
         self.assertIn("--limit (query; optional; default: 30)", output)
 
     def test_help_value_for_body_remains_request_data(self) -> None:
@@ -818,8 +818,8 @@ class CliTests(unittest.TestCase):
 
         self.assertEqual(status, 0)
         output = stdout.getvalue()
-        self.assertIn("_harness_complete", output)
-        self.assertIn("complete -F _harness_complete harness", output)
+        self.assertIn("_hctl_complete", output)
+        self.assertIn("complete -F _hctl_complete hctl", output)
 
     def test_completion_lists_api_body_action(self) -> None:
         stdout = io.StringIO()
@@ -886,8 +886,8 @@ class CliTests(unittest.TestCase):
 
     def test_completion_scripts_keep_shell_quotes_balanced(self) -> None:
         for shell, expected in [
-            ("zsh", '_harness "$@"'),
-            ("fish", 'complete -c harness -f -a "(__harness_complete)"'),
+            ("zsh", '_hctl "$@"'),
+            ("fish", 'complete -c hctl -f -a "(__hctl_complete)"'),
         ]:
             with self.subTest(shell=shell):
                 stdout = io.StringIO()
@@ -992,7 +992,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(status, 0)
         self.assertIn("Pagination: Supports --all", output)
         self.assertIn("Examples:", output)
-        self.assertIn("harness account-roles list-roles-acc --all --output table", output)
+        self.assertIn("hctl account-roles list-roles-acc --all --output table", output)
 
     def test_api_describe_prints_body_template_hint(self) -> None:
         stdout = io.StringIO()
@@ -1002,7 +1002,7 @@ class CliTests(unittest.TestCase):
 
         output = stdout.getvalue()
         self.assertEqual(status, 0)
-        self.assertIn("Body template: harness api body create-role-acc", output)
+        self.assertIn("Body template: hctl api body create-role-acc", output)
 
     def test_operation_help_prints_required_account_alias(self) -> None:
         stdout = io.StringIO()

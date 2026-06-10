@@ -8,8 +8,8 @@ Source hash: `4db54de0d20dafd60a43cfa0cc6d28c7ef2fd38e2075c158e0656483b7a96746`
 
 Every operation in the generated manifest is callable through:
 
-- `harness api call <operation-id>`
-- `harness <group> <operation>`
+- `hctl api call <operation-id>`
+- `hctl <group> <operation>`
 
 ## Groups
 

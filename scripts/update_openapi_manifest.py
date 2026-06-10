@@ -49,7 +49,7 @@ def main() -> int:
 
 
 def fetch(url: str) -> bytes:
-    request = urllib.request.Request(url, headers={"User-Agent": "harness-cli-generator/0.1"})
+    request = urllib.request.Request(url, headers={"User-Agent": "hctl-generator/0.1"})
     with urllib.request.urlopen(request, timeout=60) as response:
         return response.read()
 
@@ -363,8 +363,8 @@ def render_coverage(manifest: dict[str, Any]) -> str:
         "",
         "Every operation in the generated manifest is callable through:",
         "",
-        "- `harness api call <operation-id>`",
-        "- `harness <group> <operation>`",
+        "- `hctl api call <operation-id>`",
+        "- `hctl <group> <operation>`",
         "",
         "## Groups",
         "",

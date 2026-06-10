@@ -111,7 +111,7 @@ wheels = [
 ]
 
 [[package]]
-name = "harness-cli"
+name = "hctl"
 version = "0.1.0"
 source = { editable = "." }
 

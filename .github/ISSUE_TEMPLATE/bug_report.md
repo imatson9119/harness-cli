@@ -13,7 +13,7 @@ Describe the command, expected behavior, and actual behavior.
 ## Command output
 
 ```bash
-harness ...
+hctl ...
 ```
 
 ```text
@@ -28,7 +28,7 @@ secrets removed.
 - OS:
 - Python version:
 - uv version:
-- harness version:
+- hctl version:
 
 ## Extra context
 

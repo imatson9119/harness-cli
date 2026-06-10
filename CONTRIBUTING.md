@@ -38,10 +38,17 @@ Commit generated changes together with the generator or runtime code that needs
 them. If the upstream docs change in a way that removes endpoints, call that out
 in the pull request.
 
+## Releases
+
+The public package and command name is `hctl`. See
+[docs/distribution.md](docs/distribution.md) for the supported install
+channels, release checklist, PyPI trusted-publishing setup, Homebrew formula
+handoff, standalone zipapp artifact, and curl installer behavior.
+
 ## Pull Requests
 
 Use the pull request template and include the command output that proves the
-changed CLI behavior. For request-building changes, `harness ... --dry-run`
+changed CLI behavior. For request-building changes, `hctl ... --dry-run`
 output is usually the most useful evidence.
 
 Before opening a PR:

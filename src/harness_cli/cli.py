@@ -132,7 +132,7 @@ def dispatch(args: list[str]) -> int:
         print_top_level_help()
         return 0
     if args[0] in {"-V", "--version", "version"}:
-        print(f"harness {__version__}")
+        print(f"hctl {__version__}")
         return 0
 
     command = args[0]
@@ -203,15 +203,15 @@ def print_top_level_help() -> None:
         """Harness CLI
 
 Usage:
-  harness [--profile NAME] [--config PATH] COMMAND
-  harness init
-  harness api list [--search TEXT] [--tag TAG]
-  harness api describe OPERATION
-  harness api body OPERATION
-  harness api call OPERATION [flags]
-  harness <group> <operation> [flags]
-  harness profile list
-  harness completion SHELL
+  hctl [--profile NAME] [--config PATH] COMMAND
+  hctl init
+  hctl api list [--search TEXT] [--tag TAG]
+  hctl api describe OPERATION
+  hctl api body OPERATION
+  hctl api call OPERATION [flags]
+  hctl <group> <operation> [flags]
+  hctl profile list
+  hctl completion SHELL
 
 Built-in commands:
   init        Run onboarding and write local config
@@ -228,19 +228,19 @@ Global options:
   --config PATH   Use a config file for this command only
 
 Examples:
-  harness init
-  harness --profile prod doctor
-  harness api list --search pipeline
-  harness api describe list-roles-acc
-  harness api body create-role-acc > body.json
-  harness api call list-roles-acc --query limit=10
-  harness account-roles list-roles-acc --limit 10 --dry-run
+  hctl init
+  hctl --profile prod doctor
+  hctl api list --search pipeline
+  hctl api describe list-roles-acc
+  hctl api body create-role-acc > body.json
+  hctl api call list-roles-acc --query limit=10
+  hctl account-roles list-roles-acc --limit 10 --dry-run
 """
     )
 
 
 def command_init(argv: list[str]) -> int:
-    parser = argparse.ArgumentParser(prog="harness init", description="Configure Harness CLI.")
+    parser = argparse.ArgumentParser(prog="hctl init", description="Configure Harness CLI.")
     parser.add_argument("--host", default=None, help="Harness host URL.")
     parser.add_argument("--api-key", default=None, help="Harness API key.")
     parser.add_argument("--account", default=None, help="Default Harness account identifier.")
@@ -289,7 +289,7 @@ def command_init(argv: list[str]) -> int:
         )
 
     if not values.get("api_key"):
-        print("No API key saved. Set HARNESS_API_KEY or run `harness config set api_key ...`.")
+        print("No API key saved. Set HARNESS_API_KEY or run `hctl config set api_key ...`.")
 
     written = write_config_file(values, path, profile=profile)
     _print_init_summary(written, profile, values)
@@ -300,10 +300,10 @@ def command_config(argv: list[str]) -> int:
     if not argv or argv[0] in {"-h", "--help", "help"}:
         print(
             """Usage:
-  harness config list
-  harness config get KEY
-  harness config set KEY VALUE
-  harness config unset KEY
+  hctl config list
+  hctl config get KEY
+  hctl config set KEY VALUE
+  hctl config unset KEY
 
 Keys: """
             + ", ".join(sorted(VALID_CONFIG_KEYS))
@@ -315,7 +315,7 @@ Keys: """
         return 0
     if action == "get":
         if len(argv) != 2:
-            raise ValueError("Usage: harness config get KEY")
+            raise ValueError("Usage: hctl config get KEY")
         key = argv[1]
         if key not in VALID_CONFIG_KEYS:
             raise KeyError(f"Unknown config key: {key}")
@@ -325,13 +325,13 @@ Keys: """
         return 0
     if action == "set":
         if len(argv) != 3:
-            raise ValueError("Usage: harness config set KEY VALUE")
+            raise ValueError("Usage: hctl config set KEY VALUE")
         path = set_config_value(argv[1], argv[2])
         print(f"Wrote {path}")
         return 0
     if action == "unset":
         if len(argv) != 2:
-            raise ValueError("Usage: harness config unset KEY")
+            raise ValueError("Usage: hctl config unset KEY")
         path = unset_config_value(argv[1])
         print(f"Wrote {path}")
         return 0
@@ -342,35 +342,35 @@ def command_profile(argv: list[str]) -> int:
     if not argv or argv[0] in {"-h", "--help", "help"}:
         print(
             """Usage:
-  harness profile list [--json]
-  harness profile current
-  harness profile use NAME
-  harness profile remove NAME --force
+  hctl profile list [--json]
+  hctl profile current
+  hctl profile use NAME
+  hctl profile remove NAME --force
 """
         )
         return 0
     action = argv[0]
     rest = argv[1:]
     if action == "list":
-        parser = argparse.ArgumentParser(prog="harness profile list")
+        parser = argparse.ArgumentParser(prog="hctl profile list")
         parser.add_argument("--json", action="store_true", help="Print JSON.")
         parsed = parser.parse_args(rest)
         return command_profile_list(parsed.json)
     if action == "current":
         if rest:
-            raise ValueError("Usage: harness profile current")
+            raise ValueError("Usage: hctl profile current")
         profile = current_profile_name() or "default"
         print(profile)
         return 0
     if action == "use":
         if len(rest) != 1:
-            raise ValueError("Usage: harness profile use NAME")
+            raise ValueError("Usage: hctl profile use NAME")
         path = use_profile(rest[0])
         print(f"Active profile: {rest[0]}")
         print(f"Wrote {path}")
         return 0
     if action == "remove":
-        parser = argparse.ArgumentParser(prog="harness profile remove")
+        parser = argparse.ArgumentParser(prog="hctl profile remove")
         parser.add_argument("name")
         parser.add_argument("--force", action="store_true", help="Confirm removal.")
         parsed = parser.parse_args(rest)
@@ -423,7 +423,7 @@ def command_auth(argv: list[str]) -> int:
     if argv and argv[0] not in {"status", "-h", "--help", "help"}:
         raise ValueError(f"Unknown auth action: {argv[0]}")
     if argv and argv[0] in {"-h", "--help", "help"}:
-        print("Usage: harness auth status")
+        print("Usage: hctl auth status")
         return 0
     config = load_config()
     data = {
@@ -441,7 +441,7 @@ def command_auth(argv: list[str]) -> int:
 
 def command_doctor(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(
-        prog="harness doctor",
+        prog="hctl doctor",
         description="Check local Harness CLI setup.",
     )
     parser.add_argument("--json", action="store_true", help="Print machine-readable output.")
@@ -568,7 +568,7 @@ def doctor_network_check(
 
 def print_doctor_network_check(network_check: dict[str, Any] | None) -> None:
     if network_check is None:
-        print("Network: skipped (run `harness doctor --network`)")
+        print("Network: skipped (run `hctl doctor --network`)")
         return
     symbol = glyph("ok" if network_check["ok"] else "fail", stream=sys.stdout)
     style = "green" if network_check["ok"] else "red"
@@ -577,7 +577,7 @@ def print_doctor_network_check(network_check: dict[str, Any] | None) -> None:
 
 def command_completion(argv: list[str]) -> int:
     if not argv or argv[0] in {"-h", "--help", "help"}:
-        print("Usage: harness completion bash|zsh|fish")
+        print("Usage: hctl completion bash|zsh|fish")
         return 0
     shell = argv[0]
     scripts = {
@@ -623,12 +623,12 @@ def command_api(argv: list[str]) -> int:
     if not argv or argv[0] in {"-h", "--help", "help"}:
         print(
             """Usage:
-  harness api info
-  harness api groups
-  harness api list [--search TEXT] [--tag TAG] [--method METHOD]
-  harness api describe OPERATION
-  harness api body OPERATION
-  harness api call OPERATION [flags]
+  hctl api info
+  hctl api groups
+  hctl api list [--search TEXT] [--tag TAG] [--method METHOD]
+  hctl api describe OPERATION
+  hctl api body OPERATION
+  hctl api call OPERATION [flags]
 """
         )
         return 0
@@ -651,7 +651,7 @@ def command_api(argv: list[str]) -> int:
 
 
 def command_api_info(manifest: Manifest, argv: list[str]) -> int:
-    parser = argparse.ArgumentParser(prog="harness api info")
+    parser = argparse.ArgumentParser(prog="hctl api info")
     parser.add_argument("--json", action="store_true", help="Print JSON.")
     parsed = parser.parse_args(argv)
     data = {
@@ -670,7 +670,7 @@ def command_api_info(manifest: Manifest, argv: list[str]) -> int:
 
 
 def command_api_groups(manifest: Manifest, argv: list[str]) -> int:
-    parser = argparse.ArgumentParser(prog="harness api groups")
+    parser = argparse.ArgumentParser(prog="hctl api groups")
     parser.add_argument("--search", default=None, help="Search group slug or tag.")
     parser.add_argument("--limit", type=int, default=100, help="Maximum rows to print.")
     parser.add_argument("--wide", action="store_true", help="Do not truncate table cells.")
@@ -706,7 +706,7 @@ def command_api_groups(manifest: Manifest, argv: list[str]) -> int:
 
 
 def command_api_list(manifest: Manifest, argv: list[str]) -> int:
-    parser = argparse.ArgumentParser(prog="harness api list")
+    parser = argparse.ArgumentParser(prog="hctl api list")
     parser.add_argument("--search", default=None, help="Search operations.")
     parser.add_argument("--tag", default=None, help="Filter by tag display name.")
     parser.add_argument("--group", default=None, help="Filter by generated group slug.")
@@ -755,7 +755,7 @@ def command_api_list(manifest: Manifest, argv: list[str]) -> int:
 
 
 def command_api_describe(manifest: Manifest, argv: list[str]) -> int:
-    parser = argparse.ArgumentParser(prog="harness api describe")
+    parser = argparse.ArgumentParser(prog="hctl api describe")
     parser.add_argument("operation", help="Operation id, command slug, or group/operation.")
     parser.add_argument("--json", action="store_true", help="Print JSON.")
     parsed = parser.parse_args(argv)
@@ -768,7 +768,7 @@ def command_api_describe(manifest: Manifest, argv: list[str]) -> int:
 
 
 def command_api_body(manifest: Manifest, argv: list[str]) -> int:
-    parser = argparse.ArgumentParser(prog="harness api body")
+    parser = argparse.ArgumentParser(prog="hctl api body")
     parser.add_argument("operation", help="Operation id, command slug, or group/operation.")
     parser.add_argument("--content-type", default=None, help="Request content type to sample.")
     parser.add_argument("--output-file", default=None, help="Write the template to a file.")
@@ -1069,22 +1069,22 @@ def print_group_help(manifest: Manifest, group: str) -> None:
     operations = manifest.group_operations(group)
     print(f"{manifest.groups[group]} ({group})")
     print()
-    print(f"Usage: harness {group} OPERATION [flags]")
+    print(f"Usage: hctl {group} OPERATION [flags]")
     print()
     rows = [[op.command, op.method.upper(), op.path, op.summary] for op in operations[:100]]
     print_table(["operation", "method", "path", "summary"], rows)
     if len(operations) > 100:
         print(
             f"... {len(operations) - 100} more. "
-            f"Use `harness api list --tag {manifest.groups[group]!r}`."
+            f"Use `hctl api list --tag {manifest.groups[group]!r}`."
         )
 
 
 def print_operation_help(operation: Operation) -> None:
     print(f"{operation.operation_id}")
     print()
-    print(f"Usage: harness {operation.group} {operation.command} [flags]")
-    print(f"       harness api call {operation.operation_id} [flags]")
+    print(f"Usage: hctl {operation.group} {operation.command} [flags]")
+    print(f"       hctl api call {operation.operation_id} [flags]")
     print()
     print(f"{operation.method.upper()} {operation.path}")
     if operation.summary:
@@ -1108,7 +1108,7 @@ def print_operation_help(operation: Operation) -> None:
         required = "required" if operation.request_body.required else "optional"
         print()
         print(f"Body: {required}; content types: {', '.join(operation.request_body.content_types)}")
-        print(f"Body template: harness api body {operation.operation_id}")
+        print(f"Body template: hctl api body {operation.operation_id}")
         print("Send template: add --body-template")
     pagination = pagination_help(operation)
     if pagination:
@@ -1127,16 +1127,16 @@ def print_operation_help(operation: Operation) -> None:
 def print_api_call_help() -> None:
     print(
         """Usage:
-  harness api call OPERATION [flags]
-  harness api call OPERATION --help
+  hctl api call OPERATION [flags]
+  hctl api call OPERATION --help
 
 Call any generated Harness API operation by operation id, command slug, or
 group/operation pair.
 
 Examples:
-  harness api call list-roles-acc --query limit=10
-  harness api call account-roles/list-roles-acc --curl
-  harness api call create-role-acc --body @role.json
+  hctl api call list-roles-acc --query limit=10
+  hctl api call account-roles/list-roles-acc --curl
+  hctl api call create-role-acc --body @role.json
 """
     )
     print_call_flags_help()
@@ -1206,7 +1206,7 @@ def print_operation_detail(operation: Operation) -> None:
             + ("required" if operation.request_body.required else "optional")
             + f" ({', '.join(operation.request_body.content_types)})"
         )
-        print(f"Body template: harness api body {operation.operation_id}")
+        print(f"Body template: hctl api body {operation.operation_id}")
         print("Send template: add --body-template")
     pagination = pagination_help(operation)
     if pagination:
@@ -1223,13 +1223,13 @@ def print_operation_detail(operation: Operation) -> None:
 def operation_examples(operation: Operation) -> list[str]:
     required_flags = _example_required_flags(operation)
     examples = [
-        f"harness {operation.group} {operation.command}{required_flags}",
-        f"harness api call {operation.operation_id}{_example_required_pairs(operation)}",
+        f"hctl {operation.group} {operation.command}{required_flags}",
+        f"hctl api call {operation.operation_id}{_example_required_pairs(operation)}",
     ]
     examples[0] += _example_body_flags(operation)
     if pagination_help(operation):
-        examples.append(f"harness {operation.group} {operation.command} --all --output table")
-    examples.append(f"harness {operation.group} {operation.command}{required_flags} --dry-run")
+        examples.append(f"hctl {operation.group} {operation.command} --all --output table")
+    examples.append(f"hctl {operation.group} {operation.command}{required_flags} --dry-run")
     return examples
 
 
@@ -1270,7 +1270,7 @@ def request_body_template(
         return selected_content_type, body_template_text(selected_content_type, sample), False
     raise ValueError(
         "--body-template can only serialize structured samples for JSON or YAML content types. "
-        f"Use `harness api body {operation.operation_id}` and pass the result with "
+        f"Use `hctl api body {operation.operation_id}` and pass the result with "
         "--body instead."
     )
 
@@ -1666,36 +1666,36 @@ def _filter_candidates(candidates: list[str], current: str) -> list[str]:
 
 
 def _bash_completion_script() -> str:
-    return r"""# bash completion for harness
-_harness_complete() {
+    return r"""# bash completion for hctl
+_hctl_complete() {
     local current
     current="${COMP_WORDS[COMP_CWORD]}"
     local -a words
     words=("${COMP_WORDS[@]:1:COMP_CWORD-1}")
-    mapfile -t COMPREPLY < <(harness __complete --current "$current" -- "${words[@]}")
+    mapfile -t COMPREPLY < <(hctl __complete --current "$current" -- "${words[@]}")
 }
 
-complete -F _harness_complete harness"""
+complete -F _hctl_complete hctl"""
 
 
 def _zsh_completion_script() -> str:
-    return """#compdef harness
+    return """#compdef hctl
 
-_harness() {
+_hctl() {
     local current
     current="${words[$CURRENT]}"
     local -a prior completions
     prior=("${words[@]:1:$((CURRENT - 2))}")
-    completions=("${(@f)$(harness __complete --current "$current" -- "${prior[@]}")}")
+    completions=("${(@f)$(hctl __complete --current "$current" -- "${prior[@]}")}")
     compadd -- "${completions[@]}"
 }
 
-_harness "$@"
+_hctl "$@"
 """
 
 
 def _fish_completion_script() -> str:
-    return """function __harness_complete
+    return """function __hctl_complete
     set -l current (commandline -ct)
     set -l tokens (commandline -opc)
     if test (count $tokens) -gt 0
@@ -1707,10 +1707,10 @@ def _fish_completion_script() -> str:
             set -e tokens[$last_index]
         end
     end
-    harness __complete --current "$current" -- $tokens
+    hctl __complete --current "$current" -- $tokens
 end
 
-complete -c harness -f -a "(__harness_complete)"
+complete -c hctl -f -a "(__hctl_complete)"
 """
 
 
@@ -1829,9 +1829,9 @@ def _print_init_summary(path: Any, profile: str, values: dict[str, Any]) -> None
     )
     print()
     print("Next steps:")
-    print("  harness doctor")
-    print("  harness api list --search pipeline")
-    print("  harness account-roles list-roles-acc --dry-run")
+    print("  hctl doctor")
+    print("  hctl api list --search pipeline")
+    print("  hctl account-roles list-roles-acc --dry-run")
 
 
 def _prompt_choice(label: str, choices: list[str], default: str) -> str:

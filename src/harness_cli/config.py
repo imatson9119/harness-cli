@@ -56,7 +56,7 @@ def default_config_path() -> Path:
     config_home = os.environ.get("XDG_CONFIG_HOME")
     if config_home:
         return Path(config_home).expanduser() / "harness" / "config.json"
-    return Path.home() / ".config" / "harness" / "config.json"
+    return Path.home() / ".config" / "hctl" / "config.json"
 
 
 def load_config(path: Path | None = None) -> HarnessConfig:

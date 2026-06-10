@@ -61,8 +61,8 @@ jobs:
         run: |
           uv venv .package-smoke
           uv pip install --python .package-smoke/bin/python dist/*.whl
-          .package-smoke/bin/harness --version
-          .package-smoke/bin/harness api info
-          .package-smoke/bin/harness api list --search list-roles-acc --limit 1
-          .package-smoke/bin/harness config-api list-configs --help
-          .package-smoke/bin/harness version-api get-version --help
+          .package-smoke/bin/hctl --version
+          .package-smoke/bin/hctl api info
+          .package-smoke/bin/hctl api list --search list-roles-acc --limit 1
+          .package-smoke/bin/hctl config-api list-configs --help
+          .package-smoke/bin/hctl version-api get-version --help

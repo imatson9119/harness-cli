@@ -1,6 +1,6 @@
-# Harness CLI
+# hctl
 
-`harness` is a polished, OpenAPI-backed command line interface for the Harness
+`hctl` is a polished, OpenAPI-backed command line interface for the Harness
 Software Delivery Platform APIs.
 
 The CLI is generated from the public Harness API reference at
@@ -10,15 +10,47 @@ through a generic CLI caller.
 
 ## Install
 
+Install the latest code from Git with `uv`:
+
 ```bash
-uv venv
-uv pip install -e .
+uv tool install git+https://github.com/imatson9119/harness-cli.git
+hctl --help
 ```
 
-Then run:
+After the first PyPI release, the shortest install path is:
 
 ```bash
-harness --help
+uv tool install hctl
+```
+
+The curl installer prefers the latest GitHub Release artifact and falls back to
+the Git install path when no release artifact is available:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/imatson9119/harness-cli/main/install.sh | sh
+```
+
+Other supported channels:
+
+```bash
+pipx install hctl
+brew tap imatson9119/tap && brew install hctl
+curl -fsSLO https://github.com/imatson9119/harness-cli/releases/latest/download/hctl.pyz
+chmod +x hctl.pyz
+./hctl.pyz --help
+```
+
+See [docs/distribution.md](docs/distribution.md) for upgrade, uninstall,
+release, Homebrew, PyPI, and standalone artifact details.
+
+Upgrade and remove common installs:
+
+```bash
+uv tool upgrade hctl
+uv tool uninstall hctl
+brew upgrade hctl
+brew uninstall hctl
+rm ~/.local/bin/hctl
 ```
 
 ## Onboarding
@@ -26,18 +58,18 @@ harness --help
 Run the interactive onboarding flow:
 
 ```bash
-harness init
+hctl init
 ```
 
-The flow stores configuration in `~/.config/harness/config.json` by default and
+The flow stores configuration in `~/.config/hctl/config.json` by default and
 sets file permissions to `0600`. Config is profile-based, so you can keep
 multiple Harness accounts or projects handy:
 
 ```bash
-harness init --profile prod --output table
-harness init --profile sandbox
-harness profile use prod
-harness profile list
+hctl init --profile prod --output table
+hctl init --profile sandbox
+hctl profile use prod
+hctl profile list
 ```
 
 Onboarding asks for host, API key, account, org, project, and default output
@@ -48,8 +80,8 @@ Use global options when you want one command to use a different profile or
 config file without changing your active setup:
 
 ```bash
-harness --profile prod doctor
-harness --config ./harness.config.json auth status
+hctl --profile prod doctor
+hctl --config ./harness.config.json auth status
 ```
 
 You can also use environment variables:
@@ -76,18 +108,18 @@ identifiers.
 List generated operations:
 
 ```bash
-harness api list --search pipeline
-harness api list --search role --wide
-harness api groups --search pipeline --limit 20
-harness api list --tag "Account Roles"
-harness api list --group account-roles --has-body
-harness api list --method post --path /v1/roles
+hctl api list --search pipeline
+hctl api list --search role --wide
+hctl api groups --search pipeline --limit 20
+hctl api list --tag "Account Roles"
+hctl api list --group account-roles --has-body
+hctl api list --method post --path /v1/roles
 ```
 
 Describe an operation:
 
 ```bash
-harness api describe list-roles-acc
+hctl api describe list-roles-acc
 ```
 
 Descriptions include parameter defaults, enum hints, docs links, pagination
@@ -96,10 +128,10 @@ support, and pasteable examples.
 Print a request-body template for create/update operations:
 
 ```bash
-harness api body create-role-acc > role.json
-harness api body create-account-scoped-connector --content-type application/yaml > connector.yaml
-harness api body create-role-acc --output-file role.json
-harness api body create-role-acc --json
+hctl api body create-role-acc > role.json
+hctl api body create-account-scoped-connector --content-type application/yaml > connector.yaml
+hctl api body create-role-acc --output-file role.json
+hctl api body create-role-acc --json
 ```
 
 JSON templates are pretty-printed as JSON. YAML and other text templates are
@@ -109,16 +141,16 @@ selected content type wrapped around the body.
 Call an operation through the stable API dispatcher:
 
 ```bash
-harness api call --help
-harness api call list-roles-acc --help
-harness api call list-roles-acc --query limit=10 --help
-harness api call list-roles-acc --query limit=10
+hctl api call --help
+hctl api call list-roles-acc --help
+hctl api call list-roles-acc --query limit=10 --help
+hctl api call list-roles-acc --query limit=10
 ```
 
 Call the same operation through its generated group shortcut:
 
 ```bash
-harness account-roles list-roles-acc --limit 10
+hctl account-roles list-roles-acc --limit 10
 ```
 
 Use `--host https://custom.example.com` for one-off calls against another
@@ -128,14 +160,14 @@ Harness base URL. Like saved hosts, per-call host overrides must be full
 Render JSON list responses as a table when you want a compact human view:
 
 ```bash
-harness account-roles list-roles-acc --limit 10 --output table
-harness account-roles list-roles-acc --limit 10 --output table --columns identifier,name,createdAt
+hctl account-roles list-roles-acc --limit 10 --output table
+hctl account-roles list-roles-acc --limit 10 --output table --columns identifier,name,createdAt
 ```
 
 Fetch paginated list endpoints until they are exhausted:
 
 ```bash
-harness account-roles list-roles-acc --all --all-page-size 100 --output table
+hctl account-roles list-roles-acc --all --all-page-size 100 --output table
 ```
 
 `--all` recognizes the common pagination shapes in the generated Harness
@@ -144,8 +176,8 @@ manifest, including page, offset, and cursor-style query parameters.
 Preview the request without sending it:
 
 ```bash
-harness account-roles list-roles-acc --limit 10 --dry-run
-harness account-roles list-roles-acc --limit 10 --curl
+hctl account-roles list-roles-acc --limit 10 --dry-run
+hctl account-roles list-roles-acc --limit 10 --curl
 ```
 
 Preview output redacts `x-api-key`, `Authorization`, and common token/secret
@@ -154,9 +186,9 @@ style headers so requests are easier to share safely.
 Send JSON request bodies from a file:
 
 ```bash
-harness project-services create-service --org my-org --project my-project --body @service.json
-harness project-services create-service --org my-org --project my-project --body-json @service.json
-harness api call create-role-acc --body-template --dry-run
+hctl project-services create-service --org my-org --project my-project --body @service.json
+hctl project-services create-service --org my-org --project my-project --body-json @service.json
+hctl api call create-role-acc --body-template --dry-run
 ```
 
 Use `--body-json` for inline JSON, `@file`, or `-` stdin when you want the CLI
@@ -167,7 +199,7 @@ generated JSON or YAML request-body sample for an operation; pair it with
 Upload multipart files for file-oriented endpoints:
 
 ```bash
-harness artifact-signing upload-signature \
+hctl artifact-signing upload-signature \
   --org my-org \
   --project my-project \
   --form note=release \
@@ -177,7 +209,7 @@ harness artifact-signing upload-signature \
 Save binary responses:
 
 ```bash
-harness file-store download-file --identifier readme --output-file readme.md
+hctl file-store download-file --identifier readme --output-file readme.md
 ```
 
 ## Shell Completion
@@ -185,9 +217,20 @@ harness file-store download-file --identifier readme --output-file readme.md
 Print completion scripts for supported shells:
 
 ```bash
-harness completion bash
-harness completion zsh
-harness completion fish
+hctl completion bash
+hctl completion zsh
+hctl completion fish
+```
+
+Install completions:
+
+```bash
+mkdir -p ~/.local/share/bash-completion/completions
+hctl completion bash > ~/.local/share/bash-completion/completions/hctl
+mkdir -p ~/.zfunc
+hctl completion zsh > ~/.zfunc/_hctl
+mkdir -p ~/.config/fish/completions
+hctl completion fish > ~/.config/fish/completions/hctl.fish
 ```
 
 ## Terminal Experience
@@ -202,13 +245,13 @@ it.
 Controls:
 
 ```bash
-NO_COLOR=1 harness api list
-HARNESS_COLOR=always harness api list
-HARNESS_ANIMATION=never harness account-roles list-roles-acc --limit 10
-HARNESS_STATUS=never harness account-roles list-roles-acc --limit 10
-HARNESS_TABLE_STYLE=unicode harness account-roles list-roles-acc --output table
-HARNESS_TABLE_STYLE=plain harness account-roles list-roles-acc --output table
-HARNESS_ASCII=1 harness account-roles list-roles-acc --limit 10
+NO_COLOR=1 hctl api list
+HARNESS_COLOR=always hctl api list
+HARNESS_ANIMATION=never hctl account-roles list-roles-acc --limit 10
+HARNESS_STATUS=never hctl account-roles list-roles-acc --limit 10
+HARNESS_TABLE_STYLE=unicode hctl account-roles list-roles-acc --output table
+HARNESS_TABLE_STYLE=plain hctl account-roles list-roles-acc --output table
+HARNESS_ASCII=1 hctl account-roles list-roles-acc --limit 10
 ```
 
 Use `HARNESS_ANIMATION=never` to keep the final status line without live
@@ -217,19 +260,19 @@ motion. Use `HARNESS_STATUS=never` when you want no call status on stderr.
 ## Useful Commands
 
 ```bash
-harness doctor
-harness --profile prod doctor
-harness doctor --fix-permissions
-harness doctor --network
-harness auth status
-harness profile list
-harness profile use prod
-harness config list
-harness config set account acc_123
-harness config set default_output table
-harness api info
-harness api groups
-harness api body create-role-acc
+hctl doctor
+hctl --profile prod doctor
+hctl doctor --fix-permissions
+hctl doctor --network
+hctl auth status
+hctl profile list
+hctl profile use prod
+hctl config list
+hctl config set account acc_123
+hctl config set default_output table
+hctl api info
+hctl api groups
+hctl api body create-role-acc
 ```
 
 ## Development
@@ -249,6 +292,7 @@ uv run python -m unittest
 Install development tooling and run checks:
 
 ```bash
+uv venv
 uv pip install -e ".[dev]"
 uv run ruff format .
 uv run ruff check .
@@ -256,6 +300,7 @@ uv run mypy src/harness_cli
 uv run python scripts/validate_openapi_manifest.py
 uv run python -m compileall -q src tests scripts
 uv build --sdist --wheel
+uv run python scripts/build_standalone.py
 ```
 
 Install commit-time formatting hooks:

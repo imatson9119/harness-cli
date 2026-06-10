@@ -128,7 +128,7 @@ def prepare_request(
     if not options.no_auth:
         api_key = options.api_key or config.api_key
         if not api_key and not options.dry_run and not options.curl:
-            raise ValueError("Missing Harness API key. Run `harness init` or set HARNESS_API_KEY.")
+            raise ValueError("Missing Harness API key. Run `hctl init` or set HARNESS_API_KEY.")
         if api_key:
             headers["x-api-key"] = api_key
 
@@ -628,7 +628,7 @@ def _multipart_body(
     form_values: dict[str, list[str]],
     file_values: dict[str, list[str]],
 ) -> tuple[bytes, str]:
-    boundary = f"harness-cli-{uuid.uuid4().hex}"
+    boundary = f"hctl-{uuid.uuid4().hex}"
     chunks: list[bytes] = []
     for name, values in form_values.items():
         for value in values:

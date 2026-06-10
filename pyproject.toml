@@ -3,7 +3,7 @@ requires = ["setuptools>=69", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "harness-cli"
+name = "hctl"
 version = "0.1.0"
 description = "Polished OpenAPI-backed command line interface for Harness APIs."
 readme = "README.md"
@@ -36,7 +36,7 @@ dev = [
 ]
 
 [project.scripts]
-harness = "harness_cli.__main__:main"
+hctl = "harness_cli.__main__:main"
 
 [project.urls]
 Homepage = "https://github.com/imatson9119/harness-cli"

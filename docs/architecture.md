@@ -56,7 +56,7 @@ Call status follows `HARNESS_STATUS=always|never|auto`, and animation follows
 
 The endpoint manifest is bundled as package data under
 `harness_cli.data/operations.json`. CI builds both sdist and wheel artifacts and
-smoke-tests an installed wheel by running `harness --version` and a manifest
+smoke-tests an installed wheel by running `hctl --version` and a manifest
 lookup command.
 
 ## Manifest Validation
@@ -70,21 +70,21 @@ validator before packaging.
 
 Each OpenAPI operation is exposed through:
 
-- `harness api call <operation-id>`
-- `harness api body <operation-id>` for request-body templates
-- `harness <tag-slug> <operation-id>`
+- `hctl api call <operation-id>`
+- `hctl api body <operation-id>` for request-body templates
+- `hctl <tag-slug> <operation-id>`
 
 Operation parameters become flags when called through a generated group:
 
 ```bash
-harness account-roles list-roles-acc --limit 10
+hctl account-roles list-roles-acc --limit 10
 ```
 
 Path, query, and header parameters can also be passed explicitly:
 
 ```bash
-harness api call get-role-acc --path role=my-role
-harness api call list-roles-acc --query limit=10
+hctl api call get-role-acc --path role=my-role
+hctl api call list-roles-acc --query limit=10
 ```
 
 ## Request Construction
@@ -102,7 +102,7 @@ The request builder:
 - Uses `x-api-key` unless `--no-auth` is provided.
 - Supports JSON/YAML/form request bodies as raw input.
 - Stores request-body samples from OpenAPI examples or compact schema-derived
-  templates for `harness api body`.
+  templates for `hctl api body`.
 - Supports multipart file uploads through `--form` and `--file`.
 - Supports binary response downloads through `--output-file`.
 - Supports guarded pagination helpers for common list endpoint shapes.
@@ -121,10 +121,10 @@ users do not see Python tracebacks during normal failure modes.
 
 ## Diagnostics
 
-`harness doctor` is local by default: it checks profile state, config file
+`hctl doctor` is local by default: it checks profile state, config file
 permissions, and manifest counts without sending traffic or mutating files.
-`harness doctor --fix-permissions` opts into repairing config file permissions
-to `0600`. `harness doctor --network` opts into a real `GET /v1/version`
+`hctl doctor --fix-permissions` opts into repairing config file permissions
+to `0600`. `hctl doctor --network` opts into a real `GET /v1/version`
 reachability check against the configured host and reports the result in both
 human and JSON output.
 

@@ -1,1 +1,1 @@
-"""Test package for harness-cli."""
+"""Test package for hctl."""

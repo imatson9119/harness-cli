@@ -23,7 +23,7 @@ uv build --sdist --wheel
 ```
 
 Paste any extra command output that proves the changed behavior, especially
-`harness ... --dry-run` output for request-building changes.
+`hctl ... --dry-run` output for request-building changes.
 
 ## Endpoint manifest
 
