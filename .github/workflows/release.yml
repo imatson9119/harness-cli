@@ -29,6 +29,20 @@ jobs:
       - name: Install project
         run: uv sync --locked --all-extras --dev
 
+      - name: Check release version
+        run: |
+          expected_version="${GITHUB_REF_NAME#v}"
+          package_version="$(uv run --frozen python -c 'from harness_cli import __version__; print(__version__)')"
+          pyproject_version="$(uv run --frozen python -c 'import tomllib; from pathlib import Path; print(tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"])')"
+          if [ "$package_version" != "$pyproject_version" ]; then
+            echo "::error::src/harness_cli/__init__.py version $package_version does not match pyproject.toml version $pyproject_version"
+            exit 1
+          fi
+          if [ "$package_version" != "$expected_version" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} expects package version $expected_version, but project version is $package_version"
+            exit 1
+          fi
+
       - name: Format
         run: uv run --frozen ruff format --check .
 
@@ -72,14 +86,18 @@ jobs:
 
       - name: Smoke wheel
         run: |
+          expected="hctl ${GITHUB_REF_NAME#v}"
           uv venv .package-smoke
           uv pip install --python .package-smoke/bin/python dist/python/*.whl
-          .package-smoke/bin/hctl --version
+          actual="$(.package-smoke/bin/hctl --version)"
+          test "$actual" = "$expected"
           .package-smoke/bin/hctl api info
 
       - name: Smoke standalone zipapp
         run: |
-          dist/release/hctl.pyz --version
+          expected="hctl ${GITHUB_REF_NAME#v}"
+          actual="$(dist/release/hctl.pyz --version)"
+          test "$actual" = "$expected"
           dist/release/hctl.pyz api info
 
       - name: Create GitHub Release
@@ -92,3 +110,4 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/python
+          skip-existing: true

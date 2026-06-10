@@ -140,8 +140,10 @@ hctl completion fish > ~/.config/fish/completions/hctl.fish
 
 ## Release Process
 
-1. Update `src/harness_cli/__init__.py` and `pyproject.toml` to the release
-   version.
+1. Update `src/harness_cli/__init__.py`, `pyproject.toml`, and `uv.lock` to
+   the release version. The release workflow requires the package version to
+   match the tag without the leading `v`; for example, tag `v0.2.0` must build
+   package version `0.2.0`.
 2. Refresh the endpoint manifest if needed:
 
    ```bash
@@ -164,13 +166,16 @@ hctl completion fish > ~/.config/fish/completions/hctl.fish
 4. Tag and push:
 
    ```bash
-   git tag v0.1.0
-   git push origin v0.1.0
+   git tag v0.2.0
+   git push origin v0.2.0
    ```
 
-The release workflow builds the Python package, builds `hctl.pyz`, renders the
-Homebrew formula, writes checksums, creates a GitHub Release, and publishes to
-PyPI using trusted publishing.
+The release workflow first checks that `pyproject.toml`, `hctl --version`, and
+the pushed tag agree. It then builds the Python package, builds `hctl.pyz`,
+renders the Homebrew formula, writes checksums, creates a GitHub Release, and
+publishes to PyPI using trusted publishing. PyPI publishes use
+`skip-existing: true` so rerunning a release job after a successful publish does
+not fail on immutable, already-uploaded files.
 
 For PyPI trusted publishing, configure the `hctl` project with:
 
