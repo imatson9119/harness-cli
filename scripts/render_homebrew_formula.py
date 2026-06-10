@@ -15,6 +15,8 @@ def main() -> int:
 
     if len(args.sha256) != 64 or any(char not in "0123456789abcdef" for char in args.sha256):
         raise ValueError("--sha256 must be a lowercase SHA-256 hex digest")
+    if args.version not in args.url:
+        raise ValueError("--version must appear in --url so Homebrew can infer the stable version")
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
@@ -26,10 +28,9 @@ def main() -> int:
 
 
 FORMULA = """class Hctl < Formula
-  desc "Polished OpenAPI-backed command line interface for Harness APIs"
+  desc "Polished OpenAPI-backed command-line interface for Harness APIs"
   homepage "https://github.com/imatson9119/harness-cli"
   url "{url}"
-  version "{version}"
   sha256 "{sha256}"
   license "MIT"
 
