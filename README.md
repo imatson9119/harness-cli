@@ -73,7 +73,9 @@ hctl profile list
 ```
 
 Onboarding asks for host, API key, account, org, project, and default output
-mode. Host values must be full `http://` or `https://` URLs. Use
+mode. API key is required for authenticated Harness calls. Host has a default,
+and account, org, project, and default output are optional conveniences you can
+add or change later. Host values must be full `http://` or `https://` URLs. Use
 `--non-interactive` with flags when scripting setup.
 
 Use global options when you want one command to use a different profile or
@@ -102,6 +104,18 @@ used for common generated endpoint parameter spellings such as
 `accountIdentifier`, `accountId`, `account_id`, `orgIdentifier`,
 `organizationIdentifier`, `projectIdentifier`, and snake-case registry
 identifiers.
+
+Profiles can also store custom scalar variables:
+
+```bash
+hctl config set pipelineIdentifier release_pipeline
+hctl config set serviceIdentifier checkout_service
+```
+
+When a custom key exactly matches a generated path, query, or header parameter
+for the operation you call, hctl fills that parameter automatically. Explicit
+flags such as `--pipeline-identifier`, `--param pipelineIdentifier=...`, or
+`--query pipelineIdentifier=...` still win for that call.
 
 ## Endpoint Commands
 
@@ -277,6 +291,7 @@ hctl profile list
 hctl profile use prod
 hctl config list
 hctl config set account acc_123
+hctl config set pipelineIdentifier release_pipeline
 hctl config set default_output table
 hctl api info
 hctl api groups

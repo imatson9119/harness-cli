@@ -28,8 +28,10 @@ hctl init --non-interactive --api-key "$HARNESS_API_KEY"
 ```
 
 Interactive setup prompts for host, API key, account, org, project, and default
-output mode. Host values must be full `http://` or `https://` URLs. `--output`
-and `default_output` accept `json`, `raw`, or `table`.
+output mode. API key is required for authenticated Harness calls. Host has a
+default, and account, org, project, and default output are optional defaults
+that can be added later. Host values must be full `http://` or `https://` URLs.
+`--output` and `default_output` accept `json`, `raw`, or `table`.
 Global `--profile NAME` and `--config PATH` select command context for a single
 invocation without mutating the active profile or requiring exported
 environment variables.
@@ -67,10 +69,11 @@ Harness host so setup problems can be separated from connectivity problems.
 hctl config list
 hctl config get host
 hctl config set account acc_123
+hctl config set pipelineIdentifier release_pipeline
 hctl config unset project
 ```
 
-Supported config keys:
+Built-in config keys:
 
 - `host`
 - `api_key`
@@ -81,6 +84,11 @@ Supported config keys:
 
 `host` must be a full `http://` or `https://` URL, such as
 `https://app.harness.io`.
+
+Profiles may also store custom scalar variables. When a custom key exactly
+matches a generated path, query, or header parameter for the operation being
+called, hctl fills that parameter automatically. Explicit per-call flags always
+override profile defaults.
 
 ## API Discovery
 
@@ -239,7 +247,8 @@ Dry-run and cURL previews also redact `Authorization`, case variants of
 `--account` and the active profile account are also used for endpoints that
 expect the `Harness-Account` header. Profile account, org, and project values
 also fill common generated parameter spellings, including camel-case, ID-style,
-and snake-case Harness scope identifiers.
+and snake-case Harness scope identifiers. Custom profile variables fill any
+exactly matching generated path, query, or header parameter.
 
 Unique operation slugs can be called directly, so `hctl list-roles-acc` is a
 shortcut for `hctl api call list-roles-acc`. If a slug is ambiguous, interactive

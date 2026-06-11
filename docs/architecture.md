@@ -25,7 +25,8 @@ Local configuration is stored as a profile document:
   "profiles": {
     "prod": {
       "host": "https://app.harness.io",
-      "account": "..."
+      "account": "...",
+      "pipelineIdentifier": "release_pipeline"
     }
   }
 }
@@ -33,6 +34,10 @@ Local configuration is stored as a profile document:
 
 Environment variables override the active profile at runtime. `HARNESS_PROFILE`
 selects a profile without modifying the file.
+
+Profiles may contain custom scalar variables in addition to built-in settings.
+Those variables are exposed to request construction as operation defaults when
+their keys exactly match generated path, query, or header parameter names.
 
 Host values are validated as full `http://` or `https://` URLs during config
 load, config write, and request construction so malformed saved hosts,
@@ -97,6 +102,8 @@ The request builder:
   Harness scope aliases such as `accountIdentifier`, `accountId`, `account_id`,
   `orgIdentifier`, `organizationIdentifier`, `projectIdentifier`, and
   snake-case registry identifiers.
+- Applies custom profile variables only when their keys exactly match generated
+  path, query, or header parameters for the selected operation.
 - Preserves explicit `--query` and `--header` values over profile-derived
   defaults for the same generated parameter.
 - Uses `x-api-key` unless `--no-auth` is provided.

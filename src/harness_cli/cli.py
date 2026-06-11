@@ -14,9 +14,9 @@ from typing import Any
 
 from . import __version__
 from .config import (
+    BUILTIN_CONFIG_KEYS,
     CONFIG_ENV,
     PROFILE_ENV,
-    VALID_CONFIG_KEYS,
     VALID_OUTPUT_MODES,
     HarnessConfig,
     current_profile_name,
@@ -29,6 +29,7 @@ from .config import (
     set_config_value,
     unset_config_value,
     use_profile,
+    validate_config_key,
     write_config_file,
 )
 from .http import (
@@ -282,19 +283,28 @@ def command_init(argv: list[str]) -> int:
 
     if not parsed.non_interactive:
         _print_init_intro(path, profile)
-        values["host"] = _prompt("Host", str(values["host"])) or values["host"]
+        values["host"] = _prompt("Host (default)", str(values["host"])) or values["host"]
         values["api_key"] = (
-            _prompt("API key", str(values["api_key"] or ""), secret=True) or values["api_key"]
+            _prompt(
+                "API key (required for authenticated calls)",
+                str(values["api_key"] or ""),
+                secret=True,
+            )
+            or values["api_key"]
         )
-        values["account"] = _prompt("Default account", values.get("account") or "") or values.get(
-            "account"
+        values["account"] = _prompt(
+            "Default account (optional)",
+            values.get("account") or "",
+        ) or values.get("account")
+        values["org"] = _prompt("Default org (optional)", values.get("org") or "") or values.get(
+            "org"
         )
-        values["org"] = _prompt("Default org", values.get("org") or "") or values.get("org")
-        values["project"] = _prompt("Default project", values.get("project") or "") or values.get(
-            "project"
-        )
+        values["project"] = _prompt(
+            "Default project (optional)",
+            values.get("project") or "",
+        ) or values.get("project")
         values["default_output"] = _prompt_choice(
-            "Default output",
+            "Default output (optional)",
             sorted(VALID_OUTPUT_MODES),
             str(values["default_output"]),
         )
@@ -316,8 +326,13 @@ def command_config(argv: list[str]) -> int:
   hctl config set KEY VALUE
   hctl config unset KEY
 
-Keys: """
-            + ", ".join(sorted(VALID_CONFIG_KEYS))
+Built-in keys: """
+            + ", ".join(sorted(BUILTIN_CONFIG_KEYS))
+            + """
+
+Profiles may also store custom scalar variables. If a custom key matches a
+generated path, query, or header parameter for an operation, hctl fills it
+automatically unless you pass an explicit flag for that call."""
         )
         return 0
     action = argv[0]
@@ -328,8 +343,7 @@ Keys: """
         if len(argv) != 2:
             raise ValueError("Usage: hctl config get KEY")
         key = argv[1]
-        if key not in VALID_CONFIG_KEYS:
-            raise KeyError(f"Unknown config key: {key}")
+        validate_config_key(key)
         value = load_config().redacted().get(key)
         if value is not None:
             print(value)
@@ -1685,8 +1699,15 @@ def _config_completion_candidates(words: list[str], current: str) -> list[str]:
         return _filter_candidates(actions, current)
     action = words[0]
     if action in {"get", "set", "unset"} and len(words) == 1:
-        return _filter_candidates(sorted(VALID_CONFIG_KEYS), current)
+        return _filter_candidates(_config_key_completion_candidates(), current)
     return []
+
+
+def _config_key_completion_candidates() -> list[str]:
+    candidates = set(BUILTIN_CONFIG_KEYS)
+    with contextlib.suppress(Exception):
+        candidates.update(read_config_file())
+    return sorted(candidates)
 
 
 def _profile_completion_candidates(words: list[str], current: str) -> list[str]:
@@ -1896,6 +1917,8 @@ def _one_line(value: str, limit: int) -> str:
 def _print_init_intro(path: Any, profile: str) -> None:
     print(stylize("Harness CLI onboarding", "bold"))
     print("Let's set up a local profile for fast, tidy Harness API calls.")
+    print("Required: API key for authenticated calls.")
+    print("Optional: account, org, project, and other defaults can be added anytime.")
     print(f"Config: {path}")
     print(f"Profile: {profile}")
     print()
@@ -1912,11 +1935,11 @@ def _print_init_summary(path: Any, profile: str, values: dict[str, Any]) -> None
         [
             ["config", path],
             ["host", values.get("host") or "https://app.harness.io"],
-            ["api_key", "configured" if values.get("api_key") else "missing"],
-            ["account", values.get("account") or ""],
-            ["org", values.get("org") or ""],
-            ["project", values.get("project") or ""],
-            ["default_output", values.get("default_output") or "json"],
+            ["api_key (required for calls)", "configured" if values.get("api_key") else "missing"],
+            ["account (optional default)", values.get("account") or ""],
+            ["org (optional default)", values.get("org") or ""],
+            ["project (optional default)", values.get("project") or ""],
+            ["default_output (optional)", values.get("default_output") or "json"],
         ],
     )
     print()

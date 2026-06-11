@@ -236,6 +236,105 @@ class HttpTests(unittest.TestCase):
             },
         )
 
+    def test_prepare_request_maps_custom_profile_variable_to_query_parameter(self) -> None:
+        manifest = load_manifest()
+        operation = manifest.by_operation_id["list-roles-acc"]
+        config = HarnessConfig(
+            api_key="harness-secret-token",
+            variables={"limit": "25", "pipelineIdentifier": "ignored"},
+        )
+
+        request = prepare_request(
+            operation,
+            config,
+            CallOptions(
+                path_values={},
+                query_values={},
+                header_values={},
+                param_values={},
+                body=None,
+                content_type=None,
+                dry_run=True,
+            ),
+        )
+
+        parsed = urlsplit(request.url)
+        self.assertEqual(parsed.path, "/v1/roles")
+        self.assertEqual(parse_qs(parsed.query), {"limit": ["25"]})
+
+    def test_prepare_request_maps_custom_profile_variable_to_path_parameter(self) -> None:
+        manifest = load_manifest()
+        operation = manifest.by_operation_id["get-role-acc"]
+        config = HarnessConfig(
+            api_key="harness-secret-token",
+            variables={"role": "account_admin"},
+        )
+
+        request = prepare_request(
+            operation,
+            config,
+            CallOptions(
+                path_values={},
+                query_values={},
+                header_values={},
+                param_values={},
+                body=None,
+                content_type=None,
+                dry_run=True,
+            ),
+        )
+
+        self.assertEqual(request.url, "https://app.harness.io/v1/roles/account_admin")
+
+    def test_prepare_request_maps_custom_profile_variable_to_header_parameter(self) -> None:
+        manifest = load_manifest()
+        operation = manifest.by_operation_id["uploadSignature"]
+        config = HarnessConfig(
+            api_key="harness-secret-token",
+            variables={"Harness-Account": "custom-acc"},
+        )
+
+        request = prepare_request(
+            operation,
+            config,
+            CallOptions(
+                path_values={},
+                query_values={},
+                header_values={},
+                param_values={"org": "org", "project": "proj"},
+                body=None,
+                content_type=None,
+                dry_run=True,
+            ),
+        )
+
+        self.assertEqual(request.headers["Harness-Account"], "custom-acc")
+
+    def test_prepare_request_explicit_param_overrides_custom_profile_variable(self) -> None:
+        manifest = load_manifest()
+        operation = manifest.by_operation_id["list-roles-acc"]
+        config = HarnessConfig(
+            api_key="harness-secret-token",
+            variables={"limit": "25"},
+        )
+
+        request = prepare_request(
+            operation,
+            config,
+            CallOptions(
+                path_values={},
+                query_values={},
+                header_values={},
+                param_values={"limit": "10"},
+                body=None,
+                content_type=None,
+                dry_run=True,
+            ),
+        )
+
+        parsed = urlsplit(request.url)
+        self.assertEqual(parse_qs(parsed.query), {"limit": ["10"]})
+
     def test_prepare_request_explicit_query_overrides_profile_scope_defaults(self) -> None:
         manifest = load_manifest()
         operation = manifest.by_operation_id["getSamlLoginTest"]

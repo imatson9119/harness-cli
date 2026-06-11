@@ -320,6 +320,7 @@ def _merge_parameter_values(
     _add_scope_aliases(values, ACCOUNT_PARAMETER_ALIASES, config.account)
     _add_scope_aliases(values, ORG_PARAMETER_ALIASES, config.org)
     _add_scope_aliases(values, PROJECT_PARAMETER_ALIASES, config.project)
+    values.update(_matching_profile_variables(operation, config.variables))
 
     explicit_values = {**options.param_values, **options.path_values}
     values.update(options.param_values)
@@ -333,6 +334,16 @@ def _merge_parameter_values(
         if account:
             values["Harness-Account"] = account
     return values
+
+
+def _matching_profile_variables(operation: Operation, variables: dict[str, str]) -> dict[str, str]:
+    parameter_names = {parameter.name for parameter in operation.parameters}
+    parameter_names.update(PATH_PARAM_RE.findall(operation.path))
+    return {
+        key: value
+        for key, value in variables.items()
+        if key in parameter_names and value not in (None, "")
+    }
 
 
 def _add_scope_aliases(values: dict[str, str], aliases: tuple[str, ...], value: str | None) -> None:

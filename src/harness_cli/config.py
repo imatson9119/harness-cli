@@ -5,16 +5,32 @@ import os
 import re
 import urllib.parse
 from contextlib import suppress
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 CONFIG_ENV = "HARNESS_CONFIG"
 PROFILE_ENV = "HARNESS_PROFILE"
 DEFAULT_PROFILE = "default"
-VALID_CONFIG_KEYS = {"host", "api_key", "account", "org", "project", "default_output"}
+BUILTIN_CONFIG_KEYS = {"host", "api_key", "account", "org", "project", "default_output"}
+VALID_CONFIG_KEYS = BUILTIN_CONFIG_KEYS
 VALID_OUTPUT_MODES = {"json", "raw", "table"}
 PROFILE_NAME_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
+CONFIG_KEY_RE = re.compile(r"^[^\s\x00-\x1f\x7f]+$")
+SENSITIVE_CONFIG_KEY_NAMES = {
+    "api-key",
+    "apikey",
+    "api_key",
+    "authorization",
+}
+SENSITIVE_CONFIG_KEY_FRAGMENTS = (
+    "apikey",
+    "credential",
+    "password",
+    "privatekey",
+    "secret",
+    "token",
+)
 
 
 @dataclass(frozen=True)
@@ -26,11 +42,13 @@ class HarnessConfig:
     project: str | None = None
     default_output: str = "json"
     profile: str = DEFAULT_PROFILE
+    variables: dict[str, str] = field(default_factory=dict)
 
     def redacted(self) -> dict[str, str | None]:
         data = self.as_dict(include_empty=True)
-        if data.get("api_key"):
-            data["api_key"] = redact_secret(str(data["api_key"]))
+        for key, value in data.items():
+            if value and _is_sensitive_config_key(key):
+                data[key] = redact_secret(str(value))
         if self.profile:
             data["profile"] = self.profile
         return data
@@ -44,6 +62,7 @@ class HarnessConfig:
             "project": self.project,
             "default_output": self.default_output,
         }
+        data.update(self.variables)
         if include_empty:
             return data
         return {key: value for key, value in data.items() if value not in (None, "")}
@@ -82,6 +101,7 @@ def load_config(path: Path | None = None) -> HarnessConfig:
         project=_optional_string(merged["project"]),
         default_output=default_output,
         profile=profile,
+        variables=_profile_variables(file_data),
     )
 
 
@@ -133,16 +153,14 @@ def set_config_value(
     *,
     profile: str | None = None,
 ) -> Path:
-    if key not in VALID_CONFIG_KEYS:
-        raise KeyError(f"Unknown config key: {key}")
+    validate_config_key(key)
     data = read_config_file(path, profile=profile)
     data[key] = value
     return write_config_file(data, path, profile=profile)
 
 
 def unset_config_value(key: str, path: Path | None = None, *, profile: str | None = None) -> Path:
-    if key not in VALID_CONFIG_KEYS:
-        raise KeyError(f"Unknown config key: {key}")
+    validate_config_key(key)
     data = read_config_file(path, profile=profile)
     data.pop(key, None)
     return write_config_file(data, path, profile=profile)
@@ -244,12 +262,44 @@ def _profiles_from_document(raw: dict[str, Any]) -> dict[str, dict[str, Any]]:
 
 
 def _config_values(values: dict[str, Any]) -> dict[str, Any]:
-    clean = {key: values[key] for key in VALID_CONFIG_KEYS if values.get(key) not in (None, "")}
+    clean: dict[str, Any] = {}
+    for key, value in values.items():
+        validate_config_key(str(key))
+        if value in (None, ""):
+            continue
+        if not _is_scalar_config_value(value):
+            raise ValueError(f"Config value {key!r} must be a string, number, or boolean.")
+        clean[str(key)] = value
     if "host" in clean:
         clean["host"] = validate_host_url(clean["host"])
     if "default_output" in clean:
         clean["default_output"] = _validate_output_mode(clean["default_output"])
     return clean
+
+
+def _profile_variables(values: dict[str, Any]) -> dict[str, str]:
+    variables: dict[str, str] = {}
+    for key, value in values.items():
+        if key in BUILTIN_CONFIG_KEYS or value in (None, ""):
+            continue
+        variables[key] = _string_config_value(value)
+    return variables
+
+
+def validate_config_key(key: str) -> str:
+    if not key or not CONFIG_KEY_RE.fullmatch(key):
+        raise ValueError("Config keys cannot be empty or contain whitespace/control characters.")
+    return key
+
+
+def _is_scalar_config_value(value: Any) -> bool:
+    return isinstance(value, str | int | float | bool)
+
+
+def _string_config_value(value: Any) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return str(value)
 
 
 def _validate_profile_name(name: str) -> str:
@@ -282,6 +332,14 @@ def redact_secret(value: str) -> str:
     if len(value) <= 8:
         return "********"
     return f"{value[:4]}...{value[-4:]}"
+
+
+def _is_sensitive_config_key(key: str) -> bool:
+    normalized = re.sub(r"[^a-z0-9]+", "-", key.lower()).strip("-")
+    compact = re.sub(r"[^a-z0-9]+", "", key.lower())
+    if normalized in SENSITIVE_CONFIG_KEY_NAMES or compact in SENSITIVE_CONFIG_KEY_NAMES:
+        return True
+    return any(fragment in compact for fragment in SENSITIVE_CONFIG_KEY_FRAGMENTS)
 
 
 def _optional_string(value: Any) -> str | None:

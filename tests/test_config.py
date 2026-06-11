@@ -13,6 +13,7 @@ from harness_cli.config import (
     load_config,
     remove_profile,
     set_config_value,
+    unset_config_value,
     use_profile,
     write_config_file,
 )
@@ -37,6 +38,59 @@ class ConfigTests(unittest.TestCase):
             self.assertEqual(data["current_profile"], "prod")
             self.assertEqual(data["profiles"]["prod"]["account"], "acc")
             self.assertEqual(config_path.stat().st_mode & 0o777, 0o600)
+
+    def test_custom_profile_values_are_preserved_and_loaded_as_variables(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "config.json"
+
+            write_config_file(
+                {
+                    "host": "https://example.harness.io",
+                    "account": "acc",
+                    "pipelineIdentifier": "release_pipe",
+                    "limit": 25,
+                    "dryRun": False,
+                    "service_token": "secret-token",
+                },
+                config_path,
+                profile="prod",
+            )
+
+            data = json.loads(config_path.read_text(encoding="utf-8"))
+            config = load_config(config_path)
+
+            self.assertEqual(data["profiles"]["prod"]["pipelineIdentifier"], "release_pipe")
+            self.assertEqual(data["profiles"]["prod"]["limit"], 25)
+            self.assertFalse(data["profiles"]["prod"]["dryRun"])
+            self.assertEqual(
+                config.variables,
+                {
+                    "pipelineIdentifier": "release_pipe",
+                    "limit": "25",
+                    "dryRun": "false",
+                    "service_token": "secret-token",
+                },
+            )
+            self.assertNotIn("secret-token", str(config.redacted()))
+
+    def test_config_set_and_unset_accept_custom_keys(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "config.json"
+
+            set_config_value("pipelineIdentifier", "release_pipe", config_path)
+            self.assertEqual(
+                load_config(config_path).variables["pipelineIdentifier"], "release_pipe"
+            )
+
+            unset_config_value("pipelineIdentifier", config_path)
+            self.assertNotIn("pipelineIdentifier", load_config(config_path).variables)
+
+    def test_config_keys_cannot_contain_whitespace(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "config.json"
+
+            with self.assertRaisesRegex(ValueError, "Config keys"):
+                set_config_value("pipeline identifier", "release_pipe", config_path)
 
     def test_load_config_reads_active_profile(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

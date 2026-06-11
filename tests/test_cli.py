@@ -136,6 +136,29 @@ class CliTests(unittest.TestCase):
         self.assertEqual(stdout.getvalue(), "")
         self.assertIn("host must be an http(s) URL", stderr.getvalue())
 
+    def test_config_commands_accept_custom_profile_keys(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "config.json"
+            env = {"HARNESS_CONFIG": str(config_path)}
+
+            with patch.dict(os.environ, env, clear=True):
+                stdout = io.StringIO()
+                with redirect_stdout(stdout):
+                    set_status = main(["config", "set", "pipelineIdentifier", "release_pipeline"])
+
+                stdout = io.StringIO()
+                with redirect_stdout(stdout):
+                    get_status = main(["config", "get", "pipelineIdentifier"])
+
+            data = json.loads(config_path.read_text(encoding="utf-8"))
+            self.assertEqual(set_status, 0)
+            self.assertEqual(get_status, 0)
+            self.assertEqual(stdout.getvalue().strip(), "release_pipeline")
+            self.assertEqual(
+                data["profiles"]["default"]["pipelineIdentifier"],
+                "release_pipeline",
+            )
+
     def test_api_body_prints_request_template(self) -> None:
         stdout = io.StringIO()
 
@@ -1179,6 +1202,8 @@ class CliTests(unittest.TestCase):
             data = json.loads(config_path.read_text(encoding="utf-8"))
             self.assertEqual(status, 0)
             self.assertIn("Profile sandbox is ready", stdout.getvalue())
+            self.assertIn("api_key (required for calls)", stdout.getvalue())
+            self.assertIn("account (optional default)", stdout.getvalue())
             self.assertEqual(data["profiles"]["sandbox"]["default_output"], "table")
 
     def test_transport_errors_print_clean_cli_message(self) -> None:
