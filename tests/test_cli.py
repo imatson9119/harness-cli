@@ -378,7 +378,7 @@ class CliTests(unittest.TestCase):
                     "api",
                     "list",
                     "--search",
-                    "Create a role assignment",
+                    "create-account-scoped-role-assignments",
                     "--limit",
                     "1",
                     "--wide",

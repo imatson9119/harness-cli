@@ -65,16 +65,20 @@ Call status follows `HARNESS_STATUS=always|never|auto`, and animation follows
 ## Packaging
 
 The endpoint manifest is bundled as package data under
-`harness_cli.data/operations.json`. CI builds both sdist and wheel artifacts and
-smoke-tests an installed wheel by running `hctl --version` and a manifest
-lookup command.
+`harness_cli.data/operations.json`. A generated
+`harness_cli.data/search_index.json` ships beside it so
+`hctl api list --search` can rank primitive vector matches without runtime
+network calls or external dependencies. The index uses weighted tokens, bigrams,
+character n-grams, IDF, and cosine similarity over operation metadata. CI builds
+both sdist and wheel artifacts and smoke-tests an installed wheel by running
+`hctl --version` and a manifest lookup command.
 
 ## Manifest Validation
 
 `scripts/validate_openapi_manifest.py` checks generated manifest integrity:
 counts, unique operation IDs, unique shortcut pairs, valid methods, declared
-groups, docs URLs, and collisions with built-in CLI commands. CI runs this
-validator before packaging.
+groups, docs URLs, bundled search-index freshness, and collisions with built-in
+CLI commands. CI runs this validator before packaging.
 
 ## Generated Commands
 

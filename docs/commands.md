@@ -139,6 +139,10 @@ Useful discovery filters:
 
 `--method` is validated against known HTTP methods, and `--group` must match a
 generated group slug. Misspelled groups include nearest-match suggestions.
+`api list --search` uses the bundled manifest vector index to rank token,
+phrase, and typo-tolerant character-gram matches across command names, groups,
+tags, paths, summaries, descriptions, and parameter names. It runs fully
+offline and handles small typos such as `piplne execution`.
 
 Use `--wide` on `api list` or `api groups` when you want copy-friendly tables
 with full command and group names instead of terminal-fitted cells.

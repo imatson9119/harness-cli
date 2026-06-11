@@ -8,23 +8,38 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
+from harness_cli.search import validate_search_index_data  # noqa: E402
+
 HTTP_METHODS = {"get", "put", "post", "delete", "patch", "head", "options", "trace"}
 RESERVED_GROUPS = {"init", "config", "auth", "doctor", "api", "profile", "completion", "version"}
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MANIFEST_PATH = ROOT / "src" / "harness_cli" / "data" / "operations.json"
+DEFAULT_SEARCH_INDEX_PATH = ROOT / "src" / "harness_cli" / "data" / "search_index.json"
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate the generated Harness API manifest.")
     parser.add_argument("--path", type=Path, default=DEFAULT_MANIFEST_PATH)
+    parser.add_argument("--search-index-path", type=Path, default=DEFAULT_SEARCH_INDEX_PATH)
     parser.add_argument("--json", action="store_true", help="Print machine-readable output.")
     args = parser.parse_args()
 
     manifest = json.loads(args.path.read_text(encoding="utf-8"))
     errors = validate_manifest(manifest)
+    if args.search_index_path.exists():
+        search_index = json.loads(args.search_index_path.read_text(encoding="utf-8"))
+        if not isinstance(search_index, dict):
+            errors.append("search index must be an object")
+        else:
+            errors.extend(validate_search_index_data(manifest, search_index))
+    else:
+        errors.append(f"search index does not exist at {args.search_index_path}")
     result = {
         "ok": not errors,
         "path": str(args.path),
+        "search_index_path": str(args.search_index_path),
         "operation_count": manifest.get("operation_count"),
         "group_count": manifest.get("group_count"),
         "errors": errors,

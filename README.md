@@ -136,6 +136,10 @@ hctl api list --group account-roles --has-body
 hctl api list --method post --path /v1/roles
 ```
 
+Search is ranked from a bundled offline vector index, so natural phrases and
+small typos such as `piplne execution` work without extra dependencies or
+network calls.
+
 Describe an operation:
 
 ```bash

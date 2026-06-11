@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import sys
 import urllib.request
 from collections import Counter
 from pathlib import Path
@@ -14,7 +15,12 @@ DOCS_BASE_URL = "https://apidocs.harness.io"
 HTTP_METHODS = {"get", "put", "post", "delete", "patch", "head", "options", "trace"}
 RESERVED_GROUPS = {"init", "config", "auth", "doctor", "api", "profile", "completion", "version"}
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+
+from harness_cli.search import build_search_index_data  # noqa: E402
+
 OPERATIONS_PATH = ROOT / "src" / "harness_cli" / "data" / "operations.json"
+SEARCH_INDEX_PATH = ROOT / "src" / "harness_cli" / "data" / "search_index.json"
 COVERAGE_PATH = ROOT / "docs" / "endpoint-coverage.md"
 
 
@@ -40,8 +46,11 @@ def main() -> int:
         json.dumps(manifest, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
+    search_index = build_search_index_data(operations, manifest["source_hash"])
+    SEARCH_INDEX_PATH.write_text(json.dumps(search_index, separators=(",", ":")) + "\n")
     COVERAGE_PATH.write_text(render_coverage(manifest), encoding="utf-8")
     print(f"Wrote {OPERATIONS_PATH}")
+    print(f"Wrote {SEARCH_INDEX_PATH}")
     print(f"Wrote {COVERAGE_PATH}")
     print(f"Operations: {len(operations)}")
     print(f"Groups: {len(groups)}")

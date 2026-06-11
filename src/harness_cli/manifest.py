@@ -106,7 +106,6 @@ class Manifest:
         has_body: bool = False,
         deprecated: bool = False,
     ) -> list[Operation]:
-        needle = text.lower() if text else None
         method_filter = method.lower() if method else None
         tag_filter = tag.lower() if tag else None
         group_filter = group.lower() if group else None
@@ -125,21 +124,11 @@ class Manifest:
                 continue
             if deprecated and not operation.deprecated:
                 continue
-            if needle:
-                haystack = " ".join(
-                    [
-                        operation.operation_id,
-                        operation.command,
-                        operation.group,
-                        operation.tag,
-                        operation.method,
-                        operation.path,
-                        operation.summary,
-                    ]
-                ).lower()
-                if needle not in haystack:
-                    continue
             results.append(operation)
+        if text:
+            from .search import rank_operations
+
+            return rank_operations(text, results, source_hash=self.source_hash)
         return results
 
 
