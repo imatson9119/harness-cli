@@ -68,8 +68,8 @@ multiple Harness accounts or projects handy:
 ```bash
 hctl init --profile prod --output table
 hctl init --profile sandbox
-hctl profile use prod
-hctl profile list
+hctl config profile use prod
+hctl config profile list
 ```
 
 Onboarding asks for host, API key, account, org, project, and default output
@@ -287,8 +287,8 @@ hctl --profile prod doctor
 hctl doctor --fix-permissions
 hctl doctor --network
 hctl auth status
-hctl profile list
-hctl profile use prod
+hctl config profile list
+hctl config profile use prod
 hctl config list
 hctl config set account acc_123
 hctl config set pipelineIdentifier release_pipeline

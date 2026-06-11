@@ -10,7 +10,7 @@ hctl init
 hctl doctor
 hctl doctor --network
 hctl auth status
-hctl profile list
+hctl config profile list
 hctl config list
 hctl api info
 hctl api body create-role-acc
@@ -36,13 +36,13 @@ Global `--profile NAME` and `--config PATH` select command context for a single
 invocation without mutating the active profile or requiring exported
 environment variables.
 
-## Profiles
+## Config Profiles
 
 ```bash
-hctl profile list
-hctl profile current
-hctl profile use prod
-hctl profile remove sandbox --force
+hctl config profile list
+hctl config profile current
+hctl config profile use prod
+hctl config profile remove sandbox --force
 ```
 
 `HARNESS_PROFILE` selects a profile without changing the config file. `hctl

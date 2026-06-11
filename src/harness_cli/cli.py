@@ -46,7 +46,7 @@ from .http import (
 from .manifest import HTTP_METHODS, Manifest, Operation, load_manifest
 from .render import CallStatus, glyph, print_error, print_json, print_notice, print_table, stylize
 
-BUILTIN_COMMANDS = {"init", "config", "auth", "doctor", "api", "profile", "completion", "version"}
+BUILTIN_COMMANDS = {"init", "config", "auth", "doctor", "api", "completion", "version"}
 PAIR_FLAGS = {"--path", "--query", "--header", "--param"}
 GENERIC_CALL_FLAGS = (
     "--path",
@@ -158,8 +158,6 @@ def dispatch(args: list[str]) -> int:
         return command_doctor(args[1:])
     if command == "api":
         return command_api(args[1:])
-    if command == "profile":
-        return command_profile(args[1:])
     if command == "completion":
         return command_completion(args[1:])
     if command == "__complete":
@@ -222,16 +220,15 @@ Usage:
   hctl api body OPERATION
   hctl api call OPERATION [flags]
   hctl <group> <operation> [flags]
-  hctl profile list
+  hctl config profile list
   hctl completion SHELL
 
 Built-in commands:
   init        Run onboarding and write local config
-  config      Read and update local config
+  config      Read and update local config and profiles
   auth        Show authentication status
   doctor      Check local setup and generated manifest
   api         Discover and call generated API operations
-  profile     Manage named local config profiles
   completion  Print shell completion scripts
   version     Print CLI version
 
@@ -242,6 +239,7 @@ Global options:
 Examples:
   hctl init
   hctl --profile prod doctor
+  hctl config profile use prod
   hctl api list --search pipeline
   hctl api describe list-roles-acc
   hctl api body create-role-acc > body.json
@@ -325,6 +323,10 @@ def command_config(argv: list[str]) -> int:
   hctl config get KEY
   hctl config set KEY VALUE
   hctl config unset KEY
+  hctl config profile list [--json]
+  hctl config profile current
+  hctl config profile use NAME
+  hctl config profile remove NAME --force
 
 Built-in keys: """
             + ", ".join(sorted(BUILTIN_CONFIG_KEYS))
@@ -336,6 +338,8 @@ automatically unless you pass an explicit flag for that call."""
         )
         return 0
     action = argv[0]
+    if action == "profile":
+        return command_config_profile(argv[1:])
     if action == "list":
         print_json(load_config().redacted())
         return 0
@@ -363,39 +367,39 @@ automatically unless you pass an explicit flag for that call."""
     raise ValueError(f"Unknown config action: {action}")
 
 
-def command_profile(argv: list[str]) -> int:
+def command_config_profile(argv: list[str]) -> int:
     if not argv or argv[0] in {"-h", "--help", "help"}:
         print(
             """Usage:
-  hctl profile list [--json]
-  hctl profile current
-  hctl profile use NAME
-  hctl profile remove NAME --force
+  hctl config profile list [--json]
+  hctl config profile current
+  hctl config profile use NAME
+  hctl config profile remove NAME --force
 """
         )
         return 0
     action = argv[0]
     rest = argv[1:]
     if action == "list":
-        parser = argparse.ArgumentParser(prog="hctl profile list")
+        parser = argparse.ArgumentParser(prog="hctl config profile list")
         parser.add_argument("--json", action="store_true", help="Print JSON.")
         parsed = parser.parse_args(rest)
-        return command_profile_list(parsed.json)
+        return command_config_profile_list(parsed.json)
     if action == "current":
         if rest:
-            raise ValueError("Usage: hctl profile current")
+            raise ValueError("Usage: hctl config profile current")
         profile = current_profile_name() or "default"
         print(profile)
         return 0
     if action == "use":
         if len(rest) != 1:
-            raise ValueError("Usage: hctl profile use NAME")
+            raise ValueError("Usage: hctl config profile use NAME")
         path = use_profile(rest[0])
         print(f"Active profile: {rest[0]}")
         print(f"Wrote {path}")
         return 0
     if action == "remove":
-        parser = argparse.ArgumentParser(prog="hctl profile remove")
+        parser = argparse.ArgumentParser(prog="hctl config profile remove")
         parser.add_argument("name")
         parser.add_argument("--force", action="store_true", help="Confirm removal.")
         parsed = parser.parse_args(rest)
@@ -405,10 +409,10 @@ def command_profile(argv: list[str]) -> int:
         print(f"Removed profile: {parsed.name}")
         print(f"Wrote {path}")
         return 0
-    raise ValueError(f"Unknown profile action: {action}")
+    raise ValueError(f"Unknown config profile action: {action}")
 
 
-def command_profile_list(json_output: bool) -> int:
+def command_config_profile_list(json_output: bool) -> int:
     profiles = list_profiles()
     active = current_profile_name() or ("default" if "default" in profiles else None)
     rows = [
@@ -1595,8 +1599,6 @@ def completion_candidates(manifest: Manifest, words: list[str], current: str) ->
         return _filter_candidates(["bash", "fish", "zsh"], current)
     if command == "config":
         return _config_completion_candidates(words[1:], current)
-    if command == "profile":
-        return _profile_completion_candidates(words[1:], current)
     if command == "auth":
         return _filter_candidates(["status"], current) if len(words) == 1 else []
     if command == "doctor":
@@ -1694,10 +1696,12 @@ def _api_completion_candidates(manifest: Manifest, words: list[str], current: st
 
 
 def _config_completion_candidates(words: list[str], current: str) -> list[str]:
-    actions = ["get", "list", "set", "unset"]
+    actions = ["get", "list", "profile", "set", "unset"]
     if not words:
         return _filter_candidates(actions, current)
     action = words[0]
+    if action == "profile":
+        return _config_profile_completion_candidates(words[1:], current)
     if action in {"get", "set", "unset"} and len(words) == 1:
         return _filter_candidates(_config_key_completion_candidates(), current)
     return []
@@ -1710,7 +1714,7 @@ def _config_key_completion_candidates() -> list[str]:
     return sorted(candidates)
 
 
-def _profile_completion_candidates(words: list[str], current: str) -> list[str]:
+def _config_profile_completion_candidates(words: list[str], current: str) -> list[str]:
     actions = ["current", "list", "remove", "use"]
     if not words:
         return _filter_candidates(actions, current)

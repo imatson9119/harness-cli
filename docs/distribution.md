@@ -142,8 +142,8 @@ hctl completion fish > ~/.config/fish/completions/hctl.fish
 
 1. Update `src/harness_cli/__init__.py`, `pyproject.toml`, and `uv.lock` to
    the release version. The release workflow requires the package version to
-   match the tag without the leading `v`; for example, tag `v0.2.1` must build
-   package version `0.2.1`.
+   match the tag without the leading `v`; for example, tag `v0.3.0` must build
+   package version `0.3.0`.
 2. Refresh the endpoint manifest if needed:
 
    ```bash
@@ -166,8 +166,8 @@ hctl completion fish > ~/.config/fish/completions/hctl.fish
 4. Tag and push:
 
    ```bash
-   git tag v0.2.1
-   git push origin v0.2.1
+   git tag v0.3.0
+   git push origin v0.3.0
    ```
 
 The release workflow first checks that `pyproject.toml`, `hctl --version`, and

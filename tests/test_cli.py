@@ -943,6 +943,15 @@ class CliTests(unittest.TestCase):
         self.assertEqual(status, 0)
         self.assertIn("--profile\n", stdout.getvalue())
 
+    def test_completion_does_not_list_top_level_profile_command(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(["__complete", "--current", "prof", "--"])
+
+        self.assertEqual(status, 0)
+        self.assertNotIn("profile\n", stdout.getvalue())
+
     def test_completion_resumes_after_global_profile(self) -> None:
         stdout = io.StringIO()
 
@@ -951,6 +960,24 @@ class CliTests(unittest.TestCase):
 
         self.assertEqual(status, 0)
         self.assertIn("api\n", stdout.getvalue())
+
+    def test_completion_lists_config_profile_action(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(["__complete", "--current", "pro", "--", "config"])
+
+        self.assertEqual(status, 0)
+        self.assertIn("profile\n", stdout.getvalue())
+
+    def test_completion_lists_config_profile_subcommands(self) -> None:
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            status = main(["__complete", "--current", "u", "--", "config", "profile"])
+
+        self.assertEqual(status, 0)
+        self.assertIn("use\n", stdout.getvalue())
 
     def test_completion_lists_api_list_groups(self) -> None:
         stdout = io.StringIO()
@@ -1137,7 +1164,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("--account ACCOUNT", output)
         self.assertIn("--file file=@path", output)
 
-    def test_profile_commands_manage_config_profiles(self) -> None:
+    def test_config_profile_commands_manage_config_profiles(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             config_path = Path(temp_dir) / "config.json"
             env = {"HARNESS_CONFIG": str(config_path)}
@@ -1163,7 +1190,7 @@ class CliTests(unittest.TestCase):
 
                 stdout = io.StringIO()
                 with redirect_stdout(stdout):
-                    status = main(["profile", "list"])
+                    status = main(["config", "profile", "list"])
 
                 self.assertEqual(status, 0)
                 self.assertIn("prod", stdout.getvalue())
@@ -1171,10 +1198,19 @@ class CliTests(unittest.TestCase):
 
                 stdout = io.StringIO()
                 with redirect_stdout(stdout):
-                    status = main(["profile", "current"])
+                    status = main(["config", "profile", "current"])
 
                 self.assertEqual(status, 0)
                 self.assertEqual(stdout.getvalue().strip(), "prod")
+
+    def test_top_level_profile_command_is_removed(self) -> None:
+        stderr = io.StringIO()
+
+        with contextlib.redirect_stderr(stderr):
+            status = main(["profile", "list"])
+
+        self.assertEqual(status, 2)
+        self.assertIn("Unknown command or generated group: profile", stderr.getvalue())
 
     def test_init_writes_output_mode_and_prints_summary(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
