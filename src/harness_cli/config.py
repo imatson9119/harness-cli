@@ -83,10 +83,12 @@ def load_config(path: Path | None = None) -> HarnessConfig:
     raw_data = read_config_document(config_path)
     profile = current_profile_name(config_path, raw=raw_data)
     file_data = _profile_values(raw_data, profile=profile)
+    default_data = _profile_values(raw_data, profile=DEFAULT_PROFILE)
+    default_api_key = None if profile == DEFAULT_PROFILE else default_data.get("api_key")
 
     merged = {
         "host": os.environ.get("HARNESS_HOST", file_data.get("host", "https://app.harness.io")),
-        "api_key": os.environ.get("HARNESS_API_KEY", file_data.get("api_key")),
+        "api_key": os.environ.get("HARNESS_API_KEY", file_data.get("api_key") or default_api_key),
         "account": os.environ.get("HARNESS_ACCOUNT", file_data.get("account")),
         "org": os.environ.get("HARNESS_ORG", file_data.get("org")),
         "project": os.environ.get("HARNESS_PROJECT", file_data.get("project")),

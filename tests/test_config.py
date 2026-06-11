@@ -11,6 +11,7 @@ from harness_cli.config import (
     current_profile_name,
     list_profiles,
     load_config,
+    read_config_file,
     remove_profile,
     set_config_value,
     unset_config_value,
@@ -113,6 +114,80 @@ class ConfigTests(unittest.TestCase):
             self.assertEqual(config.profile, "stage")
             self.assertEqual(config.host, "https://app.harness.io")
             self.assertEqual(config.account, "stage-account")
+
+    def test_non_default_profile_inherits_default_api_key(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "config.json"
+            config_path.write_text(
+                json.dumps(
+                    {
+                        "current_profile": "agent",
+                        "profiles": {
+                            "default": {"api_key": "default-token"},
+                            "agent": {"account": "agent-account"},
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            config = load_config(config_path)
+
+            self.assertEqual(config.profile, "agent")
+            self.assertEqual(config.api_key, "default-token")
+            self.assertEqual(config.account, "agent-account")
+
+    def test_profile_api_key_overrides_default_api_key(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "config.json"
+            config_path.write_text(
+                json.dumps(
+                    {
+                        "current_profile": "agent",
+                        "profiles": {
+                            "default": {"api_key": "default-token"},
+                            "agent": {"api_key": "agent-token"},
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            self.assertEqual(load_config(config_path).api_key, "agent-token")
+
+    def test_environment_api_key_overrides_profile_and_default_api_keys(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "config.json"
+            config_path.write_text(
+                json.dumps(
+                    {
+                        "current_profile": "agent",
+                        "profiles": {
+                            "default": {"api_key": "default-token"},
+                            "agent": {"api_key": "agent-token"},
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with patch.dict(os.environ, {"HARNESS_API_KEY": "env-token"}, clear=True):
+                config = load_config(config_path)
+
+            self.assertEqual(config.api_key, "env-token")
+
+    def test_config_writes_do_not_materialize_inherited_api_key(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "config.json"
+
+            write_config_file({"api_key": "default-token"}, config_path, profile="default")
+            use_profile("agent", config_path)
+            set_config_value("account", "agent-account", config_path)
+
+            data = json.loads(config_path.read_text(encoding="utf-8"))
+            self.assertNotIn("api_key", data["profiles"]["agent"])
+            self.assertNotIn("api_key", read_config_file(config_path, profile="agent"))
+            self.assertEqual(load_config(config_path).api_key, "default-token")
 
     def test_empty_config_file_behaves_like_missing_config(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

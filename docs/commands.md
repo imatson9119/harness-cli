@@ -47,6 +47,9 @@ hctl config profile remove sandbox --force
 
 `HARNESS_PROFILE` selects a profile without changing the config file. `hctl
 init --profile NAME` writes onboarding values into a named profile.
+Non-default profiles inherit the default profile's API key when they do not set
+their own. Set a profile-specific `api_key` when a profile uses a different
+Harness host or needs separate access.
 
 ## Diagnostics
 
@@ -84,6 +87,10 @@ Built-in config keys:
 
 `host` must be a full `http://` or `https://` URL, such as
 `https://app.harness.io`.
+
+`api_key` is required somewhere effective for authenticated Harness calls:
+environment variable, active profile, or the default profile inherited by a
+non-default active profile.
 
 Profiles may also store custom scalar variables. When a custom key exactly
 matches a generated path, query, or header parameter for the operation being

@@ -78,6 +78,12 @@ and account, org, project, and default output are optional conveniences you can
 add or change later. Host values must be full `http://` or `https://` URLs. Use
 `--non-interactive` with flags when scripting setup.
 
+Non-default profiles inherit the default profile's API key when they do not set
+their own. This keeps scripted or agent-created profiles simple: store the API
+key once in `default`, then create narrower profiles for account, org, project,
+or custom operation variables. Set `api_key` on a profile when it targets a
+different Harness host or needs different access.
+
 Use global options when you want one command to use a different profile or
 config file without changing your active setup:
 

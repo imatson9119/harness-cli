@@ -35,6 +35,11 @@ Local configuration is stored as a profile document:
 Environment variables override the active profile at runtime. `HARNESS_PROFILE`
 selects a profile without modifying the file.
 
+Non-default profiles inherit `api_key` from the default profile at load time
+when they do not define their own. The inherited key is not copied into profile
+documents, so profile writes can update account, org, project, and custom
+variables without duplicating secrets.
+
 Profiles may contain custom scalar variables in addition to built-in settings.
 Those variables are exposed to request construction as operation defaults when
 their keys exactly match generated path, query, or header parameter names.

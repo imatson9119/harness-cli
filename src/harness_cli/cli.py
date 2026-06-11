@@ -16,6 +16,7 @@ from . import __version__
 from .config import (
     BUILTIN_CONFIG_KEYS,
     CONFIG_ENV,
+    DEFAULT_PROFILE,
     PROFILE_ENV,
     VALID_OUTPUT_MODES,
     HarnessConfig,
@@ -270,6 +271,7 @@ def command_init(argv: list[str]) -> int:
     path = default_config_path()
     profile = current_profile_name(path, explicit=parsed.profile)
     existing = {} if parsed.overwrite else read_config_file(path, profile=profile)
+    profiles = list_profiles(path)
 
     values: dict[str, Any] = dict(existing)
     values["host"] = parsed.host or values.get("host") or "https://app.harness.io"
@@ -307,11 +309,15 @@ def command_init(argv: list[str]) -> int:
             str(values["default_output"]),
         )
 
-    if not values.get("api_key"):
-        print("No API key saved. Set HARNESS_API_KEY or run `hctl config set api_key ...`.")
+    api_key_source = _profile_api_key_source(profile, values, profiles)
+    if not api_key_source:
+        print(
+            "No API key available. Set HARNESS_API_KEY, "
+            "`hctl config set api_key ...`, or configure the default profile."
+        )
 
     written = write_config_file(values, path, profile=profile)
-    _print_init_summary(written, profile, values)
+    _print_init_summary(written, profile, values, api_key_source=api_key_source)
     return 0
 
 
@@ -419,7 +425,8 @@ def command_config_profile_list(json_output: bool) -> int:
         {
             "profile": name,
             "active": name == active,
-            "has_api_key": bool(values.get("api_key")),
+            "has_api_key": bool(_profile_api_key_source(name, values, profiles)),
+            "api_key_source": _profile_api_key_source(name, values, profiles),
             "host": values.get("host", "https://app.harness.io"),
             "account": values.get("account"),
             "org": values.get("org"),
@@ -440,12 +447,33 @@ def command_config_profile_list(json_output: bool) -> int:
                     row["account"] or "",
                     row["org"] or "",
                     row["project"] or "",
-                    "yes" if row["has_api_key"] else "",
+                    _profile_api_key_label(row["api_key_source"]),
                 ]
                 for row in rows
             ],
         )
     return 0
+
+
+def _profile_api_key_source(
+    profile: str,
+    values: dict[str, Any],
+    profiles: dict[str, dict[str, Any]],
+) -> str | None:
+    if values.get("api_key"):
+        return "profile"
+    default_values = profiles.get(DEFAULT_PROFILE, {})
+    if profile != DEFAULT_PROFILE and default_values.get("api_key"):
+        return DEFAULT_PROFILE
+    return None
+
+
+def _profile_api_key_label(source: Any) -> str:
+    if source == "profile":
+        return "yes"
+    if source == DEFAULT_PROFILE:
+        return DEFAULT_PROFILE
+    return ""
 
 
 def command_auth(argv: list[str]) -> int:
@@ -1928,7 +1956,18 @@ def _print_init_intro(path: Any, profile: str) -> None:
     print()
 
 
-def _print_init_summary(path: Any, profile: str, values: dict[str, Any]) -> None:
+def _print_init_summary(
+    path: Any,
+    profile: str,
+    values: dict[str, Any],
+    *,
+    api_key_source: str | None,
+) -> None:
+    api_key_status = "missing"
+    if values.get("api_key"):
+        api_key_status = "configured"
+    elif api_key_source == DEFAULT_PROFILE:
+        api_key_status = "inherited from default"
     print()
     print(
         f"{stylize(glyph('ok', stream=sys.stdout), 'green')} "
@@ -1939,7 +1978,7 @@ def _print_init_summary(path: Any, profile: str, values: dict[str, Any]) -> None
         [
             ["config", path],
             ["host", values.get("host") or "https://app.harness.io"],
-            ["api_key (required for calls)", "configured" if values.get("api_key") else "missing"],
+            ["api_key (required for calls)", api_key_status],
             ["account (optional default)", values.get("account") or ""],
             ["org (optional default)", values.get("org") or ""],
             ["project (optional default)", values.get("project") or ""],

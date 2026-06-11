@@ -1203,6 +1203,85 @@ class CliTests(unittest.TestCase):
                 self.assertEqual(status, 0)
                 self.assertEqual(stdout.getvalue().strip(), "prod")
 
+    def test_config_profile_list_shows_inherited_default_api_key(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "config.json"
+            config_path.write_text(
+                json.dumps(
+                    {
+                        "current_profile": "agent",
+                        "profiles": {
+                            "default": {"api_key": "default-token"},
+                            "agent": {"account": "agent-account"},
+                            "prod": {"api_key": "prod-token"},
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            env = {"HARNESS_CONFIG": str(config_path)}
+
+            with patch.dict(os.environ, env, clear=True):
+                stdout = io.StringIO()
+                with redirect_stdout(stdout):
+                    status = main(["config", "profile", "list", "--json"])
+
+            rows = {row["profile"]: row for row in json.loads(stdout.getvalue())}
+            self.assertEqual(status, 0)
+            self.assertTrue(rows["agent"]["has_api_key"])
+            self.assertEqual(rows["agent"]["api_key_source"], "default")
+            self.assertEqual(rows["prod"]["api_key_source"], "profile")
+
+            with patch.dict(os.environ, env, clear=True):
+                stdout = io.StringIO()
+                with redirect_stdout(stdout):
+                    status = main(["config", "profile", "list"])
+
+            self.assertEqual(status, 0)
+            self.assertIn("agent", stdout.getvalue())
+            self.assertIn("default", stdout.getvalue())
+
+    def test_init_profile_can_inherit_default_api_key_without_copying_it(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "config.json"
+            config_path.write_text(
+                json.dumps(
+                    {
+                        "current_profile": "default",
+                        "profiles": {"default": {"api_key": "default-token"}},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            env = {"HARNESS_CONFIG": str(config_path)}
+
+            with patch.dict(os.environ, env, clear=True):
+                stdout = io.StringIO()
+                with redirect_stdout(stdout):
+                    status = main(
+                        [
+                            "init",
+                            "--non-interactive",
+                            "--profile",
+                            "agent",
+                            "--account",
+                            "agent-account",
+                        ]
+                    )
+
+                auth_stdout = io.StringIO()
+                with redirect_stdout(auth_stdout):
+                    auth_status = main(["auth", "status"])
+
+            data = json.loads(config_path.read_text(encoding="utf-8"))
+            auth = json.loads(auth_stdout.getvalue())
+            self.assertEqual(status, 0)
+            self.assertEqual(auth_status, 0)
+            self.assertIn("inherited from default", stdout.getvalue())
+            self.assertNotIn("api_key", data["profiles"]["agent"])
+            self.assertTrue(auth["has_api_key"])
+            self.assertEqual(auth["profile"], "agent")
+
     def test_top_level_profile_command_is_removed(self) -> None:
         stderr = io.StringIO()
 
